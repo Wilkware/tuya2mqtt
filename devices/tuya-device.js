@@ -1,10 +1,10 @@
 const TuyAPI = require('tuyapi')
 const { evaluate } = require('mathjs')
 const utils = require('../lib/utils')
-const debug = require('debug')('tuya-mqtt:tuyapi')
-const debugState = require('debug')('tuya-mqtt:state')
-const debugCommand = require('debug')('tuya-mqtt:command')
-const debugError = require('debug')('tuya-mqtt:error')
+const debug = require('debug')('tuya2mqtt:tuyapi')
+const debugState = require('debug')('tuya2mqtt:state')
+const debugCommand = require('debug')('tuya2mqtt:command')
+const debugError = require('debug')('tuya2mqtt:error')
 
 class TuyaDevice {
     constructor(deviceInfo) {
@@ -15,7 +15,8 @@ class TuyaDevice {
         // Build TuyAPI device options from device config info
         this.options = {
             id: this.config.id,
-            key: this.config.key
+            key: this.config.key,
+            issueRefreshOnConnect: true
         }
         if (this.config.name) { this.options.name = this.config.name.toLowerCase().replace(/\s|\+|#|\//g,'_') }
         if (this.config.ip) { 
@@ -23,7 +24,17 @@ class TuyaDevice {
             if (this.config.version) {
                 this.options.version = this.config.version
             } else {
-                this.options.version = '3.1'
+                this.options.version = '3.3'
+            }
+            if (this.config.issueRefreshOnConnect) {
+                this.options.issueRefreshOnConnect = this.config.issueRefreshOnConnect
+            } else {
+                this.options.issueRefreshOnConnect = false
+            }
+            if (this.config.issueRefreshOnPing) {
+                this.options.issueRefreshOnPing = this.config.issueRefreshOnPing
+            } else {
+                this.options.issueRefreshOnPing = false
             }
         }
 
@@ -55,6 +66,23 @@ class TuyaDevice {
 
         // Create the new Tuya Device
         this.device = new TuyAPI(JSON.parse(JSON.stringify(this.options)))
+
+        // Some new devices don't send data updates if the app isn't open.
+        // These devices need to be "forced" to send updates. You can do so by calling refresh() (see tuyapi docs), which will emit a dp-refresh event.
+        this.device.on('dp-refresh', (data) => {
+            if (typeof data === 'object') {
+                if (data.cid) {
+                    debug('Received dp-refresh data from device ' + this.options.id + ' cid: ' + data.cid + ' ->', JSON.stringify(data.dps))
+                } else {
+                    debug('Received dp-refresh data from device ' + this.options.id + ' ->', JSON.stringify(data.dps))
+                }
+                this.updateState(data)
+            } else {
+                if (data !== 'json obj data unvalid') {
+                    debug('Received string data from device ' + this.options.id + ' ->', data.replace(/[^a-zA-Z0-9 ]/g, ''))
+                }
+            }
+        })
 
         // Listen for device data and call update DPS function if valid
         this.device.on('data', (data) => {
@@ -141,7 +169,7 @@ class TuyaDevice {
                 if (this.isRgbtwLight) {
                     if (this.config.hasOwnProperty('dpsColor') && this.config.dpsColor == key) {
                         this.updateColorState(data.dps[key])
-                    } else if (this.config.hasOwnProperty('dpsMode') && this.config.dpsMode == key) {
+                    } else if (this.config.hasOwnProperty('dpsMode') && this.config.dpsMode == key && this.dps.hasOwnProperty(this.config.dpsColor)) {
                         // If color/white mode is changing, force sending color state
                         // Allows overriding saturation value to 0% for white mode for the HSB device topics
                         this.dps[this.config.dpsColor].updated = true
@@ -200,7 +228,7 @@ class TuyaDevice {
                 // Only publish values if different from previous value
                 if (this.dps[key].updated) {
                     const dpsKeyTopic = dpsTopic + '/' + key + '/state'
-                    const data = this.dps.hasOwnProperty(key) ? this.dps[key].val.toString() : 'None'
+                    const data = this.dps.hasOwnProperty(key) && this.dps[key].hasOwnProperty('val') ? this.dps[key].val.toString() : 'None'
                     debugState('MQTT DPS'+key+': '+dpsKeyTopic+' -> ', data)
                     this.publishMqtt(dpsKeyTopic, data, false)
                     this.dps[key].updated = false
@@ -216,11 +244,19 @@ class TuyaDevice {
         let state
         switch (deviceTopic.type) {
             case 'bool':
-                state = value ? 'ON' : 'OFF'
+                state = value ? 'on' : 'off'
                 break;
             case 'int':
             case 'float':
                 state = this.parseNumberState(value, deviceTopic)
+                break;
+            case 'rgbToHsb':
+                debug('command rgb', command)
+                command = this.rgbToHsb(command)
+                debug('converted to hsb', command)
+
+                this.updateCommandColor(command, deviceTopic.components)
+                tuyaCommand.set = this.parseTuyaHsbColor()
                 break;
             case 'hsb':
             case 'hsbhex':
@@ -229,7 +265,7 @@ class TuyaDevice {
                 const components = deviceTopic.components.split(',')
                 for (let i in components) {
                     // If light is in white mode always report saturation 0%, otherwise report actual value
-                    state.push((components[i] === 's' && this.dps[this.config.dpsMode].val === 'white') ? 0 : this.color[components[i]])
+                    state.push((components[i] === 's' && this.dps.hasOwnProperty(this.config.dpsMode) && this.dps[this.config.dpsMode].val === 'white') ? 0 : this.color[components[i]])
                 }
                 state = (state.join(','))
                 break;
@@ -383,6 +419,33 @@ class TuyaDevice {
             }
             return true
         }
+    }
+
+    rgbToHsb(rgb) {
+        // Remove any leading "#" if present
+        rgb = rgb.replace(/^#/, '')
+
+        // Parse the hex string into RGB components
+        const r = parseInt(rgb.substring(0, 2), 16) / 255
+        const g = parseInt(rgb.substring(2, 4), 16) / 255
+        const b = parseInt(rgb.substring(4, 6), 16) / 255
+        const v = Math.max(r, g, b)
+        const n = v - Math.min(r, g, b)
+
+        const h =
+            n === 0
+                ? 0
+                : n && v === r
+                    ? (g - b) / n
+                    : v === g
+                        ? 2 + (b - r) / n
+                        : 4 + (r - g) / n
+
+
+        const hue = Math.round(60 * (h < 0 ? h + 6 : h))
+        const saturation = Math.round(v && (n / v) * 100)
+        const brightness = Math.round(v * 100)
+        return hue + ',' + saturation + ',' + brightness
     }
 
     // Convert simple bool commands to true/false

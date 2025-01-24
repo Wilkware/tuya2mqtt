@@ -1,5 +1,5 @@
-# tuya-mqtt - Devices
-The most powerful feature in tuya-mqtt is the ability to configure devices to use friendly topics.  For some devices there exist pre-defined device templates which makes using those devices quite easy, simply add the type information to the devices.conf file and tuya-mqtt automatically creates friendly topics for that device.
+# tuya2mqtt - Devices
+The most powerful feature in tuya2mqtt is the ability to configure devices to use friendly topics.  For some devices there exist pre-defined device templates which makes using those devices quite easy, simply add the type information to the devices.conf file and tuya2mqtt automatically creates friendly topics for that device.
 
 Friendly topics make it easy to communicate with the device in a standard way and thus integrating into various Home Automation platforms.  The topic style generally follows that used by the Home Assistant MQTT integration components and the pre-defined devices automatically send Home Assistant style MQTT discovery messages during startup to make integration with Home Assistant, or other platforms which understand Home Assistant MQTT discovery, even easier.
 
@@ -26,7 +26,7 @@ To use a device template, simply add the "type" option to the devices.conf simil
   }
 ]
 ```
-Once the device type is defined tuya-mqtt will attempt to create friendly topics for that device type on connection to the device.  Each device type defines specific defaults for DPS values which are typical for common Tuya devices and some, like RGBTWLight, have logic to attempt to detect different variation by querying the device.  The goal is that, in most cases, simply adding the type is all that is needed, however, in many cases it is also possible to override the manual settings for the device.  The device friendly topics and options for each device are documented below.
+Once the device type is defined tuya2mqtt will attempt to create friendly topics for that device type on connection to the device.  Each device type defines specific defaults for DPS values which are typical for common Tuya devices and some, like RGBTWLight, have logic to attempt to detect different variation by querying the device.  The goal is that, in most cases, simply adding the type is all that is needed, however, in many cases it is also possible to override the manual settings for the device.  The device friendly topics and options for each device are documented below.
 
 ### SimpleSwitch
 Simple devices that support only on/off.
@@ -66,7 +66,7 @@ The RGBTWLight device support Tuya color lights (bulbs and LEDs). Tuya lights op
 | Saturation >= 10 % | color |
 | All other changes | current mode |
 
-This means changing the hue of the light will only switch to color mode if saturation is also >= 10%.  Some lights automatically attempt to switch to color mode when any HSB value is updated however, if the saturation setting remains < 10%, tuya-mqtt will force the light back to white mode in this case.  This can cause a very quick flicker when chaning hue or color brightness while the saturation remains below the 10% threshold.  I expect this not to be a common issue and implemented this in an attempt to make all tuya lights behave in a consistent way.
+This means changing the hue of the light will only switch to color mode if saturation is also >= 10%.  Some lights automatically attempt to switch to color mode when any HSB value is updated however, if the saturation setting remains < 10%, tuya2mqtt will force the light back to white mode in this case.  This can cause a very quick flicker when chaning hue or color brightness while the saturation remains below the 10% threshold.  I expect this not to be a common issue and implemented this in an attempt to make all tuya lights behave in a consistent way.
 
 When the bulb is in white mode, saturation values in the friendly topics are always reported as 0%.  This is true even if the mode is toggled manually from color to white mode using the mode_command topic or the Tuya/SmartLife app.  When the light is toggled back to color mode, saturation will be reported at the correct level.  This is done primarly as a means to indicate color state to automation platforms that don't have a concept of white/color mode, otherwise a light in white mode may still be represented with a color icon in the platforms UI.
 
@@ -128,7 +128,7 @@ To use the manual configuration options simply add them to device.conf file afte
 ```
 
 ## Generic Device Templates
-If a pre-defined device tempate does not exist for the device, or does not expose all capabilities of the device, there are still mulitple options available to control the devices.  One method is to use the DPS topics directly to control the device using either native Tuya JSON commands or via the DPS key values by using the DPS key topics (see [DPS Topics](TOPICS.md#dps-topics)).  The second method is to create a template for your device to map DPS key values to friendly topics.  The GenericDevice type allows you to manually create a template for any device using the same templating engine as the pre-defined device templates.  Once you've created a tempalte for your device, it can be re-used with other, similar devices and you can submit your template to the tuya-mqtt project for other to use, or even for inclusion at a pre-defined device template in the future.
+If a pre-defined device tempate does not exist for the device, or does not expose all capabilities of the device, there are still mulitple options available to control the devices.  One method is to use the DPS topics directly to control the device using either native Tuya JSON commands or via the DPS key values by using the DPS key topics (see [DPS Topics](TOPICS.md#dps-topics)).  The second method is to create a template for your device to map DPS key values to friendly topics.  The GenericDevice type allows you to manually create a template for any device using the same templating engine as the pre-defined device templates.  Once you've created a tempalte for your device, it can be re-used with other, similar devices and you can submit your template to the tuya2mqtt project for other to use, or even for inclusion at a pre-defined device template in the future.
 
 Creating a device template is relatively straightforward, but first you must know what DPS keys your devices uses.  The GenericDevice attempts to query all device DPS states on startup, but some devices to not respond to this command, however, the generic device will ALWAYS report any DPS topics from which it receives upated.  The easiest way to determine how your device uses it's DPS topics is to connect to the MQTT broker via a tool like MQTT Explorer or mosquitto_sub, and watch the topics as you manipulate the device with the Tuya/Smartlife app.
 
@@ -210,4 +210,4 @@ The following tables define the available template value types and their options
 | key | DPS key of the value |
 | components | Comma separated list of HSB components that should be included in this topic |
 
-Using these value types you can define templates for a wide range of devices.  Additional types and options are likely to be included in future versions of tuya-mqtt.
+Using these value types you can define templates for a wide range of devices.  Additional types and options are likely to be included in future versions of tuya2mqtt.

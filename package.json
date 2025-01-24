@@ -1,15 +1,15 @@
 {
-  "name": "tuya-mqtt",
-  "version": "3.0.4",
+  "name": "tuya2mqtt",
+  "version": "3.0.5",
   "description": "Control Tuya devices locally via MQTT",
-  "homepage": "https://github.com/TheAgentK/tuya-mqtt#readme",
-  "main": "tuya-mqtt.js",
+  "homepage": "https://github.com/Wilkware/tuya2mqtt#readme",
+  "main": "tuya2mqtt.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": {
-    "name": "TheAgentK",
-    "email": "lulattsch22@googlemail.com"
+    "name": "Wilkware",
+    "email": "heiko.wilknitz@wilkware.de"
   },
   "license": "ISC",
   "dependencies": {
@@ -24,6 +24,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/TheAgentK/tuya-mqtt.git"
+    "url": "git://github.com/Wilkware/tuya2mqtt.git"
   }
 }

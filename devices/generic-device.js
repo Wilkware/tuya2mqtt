@@ -1,5 +1,5 @@
 const TuyaDevice = require('./tuya-device')
-const debug = require('debug')('tuya-mqtt:device')
+const debug = require('debug')('tuya2mqtt:device')
 const utils = require('../lib/utils')
 
 class GenericDevice extends TuyaDevice {

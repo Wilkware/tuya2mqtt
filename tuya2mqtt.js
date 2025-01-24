@@ -2,9 +2,9 @@
 const fs = require('fs')
 const mqtt = require('mqtt')
 const json5 = require('json5')
-const debug = require('debug')('tuya-mqtt:info')
-const debugCommand = require('debug')('tuya-mqtt:command')
-const debugError = require('debug')('tuya-mqtt:error')
+const debug = require('debug')('tuya2mqtt:info')
+const debugCommand = require('debug')('tuya2mqtt:command')
+const debugError = require('debug')('tuya2mqtt:error')
 const SimpleSwitch = require('./devices/simple-switch')
 const SimpleDimmer = require('./devices/simple-dimmer')
 const RGBTWLight = require('./devices/rgbtw-light')
@@ -115,8 +115,6 @@ const main = async() => {
         debug('Connection established to MQTT server')
         let topic = CONFIG.topic + '#'
         mqttClient.subscribe(topic)
-        mqttClient.subscribe('homeassistant/status')
-        mqttClient.subscribe('hass/status')
         initDevices(configDevices, mqttClient)
     })
 
@@ -140,12 +138,7 @@ const main = async() => {
             const commandTopic = splitTopic[topicLength - 1]
             const deviceTopicLevel = splitTopic[1]
 
-            if (topic === 'homeassistant/status' || topic === 'hass/status' ) {
-                debug('Home Assistant state topic '+topic+' received message: '+message)
-                if (message === 'online') {
-                    republishDevices()
-                }
-            } else if (commandTopic.includes('command')) {
+            if (commandTopic.includes('command')) {
                 // If it looks like a valid command topic try to process it
                 debugCommand('Received MQTT message -> ', JSON.stringify({
                     topic: topic,

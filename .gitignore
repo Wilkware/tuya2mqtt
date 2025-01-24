@@ -3,6 +3,7 @@ test/
 config.json
 .vscode/
 .bak
+devices*conf
 
 # Logs
 logs
