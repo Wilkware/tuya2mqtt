@@ -1,6 +1,5 @@
 const TuyaDevice = require('./tuya-device')
 const debug = require('debug')('tuya2mqtt:device')
-const debugDiscovery = require('debug')('tuya2mqtt:discovery')
 const utils = require('../lib/utils')
 
 class SimpleSwitch extends TuyaDevice {

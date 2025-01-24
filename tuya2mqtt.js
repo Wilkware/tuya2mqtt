@@ -8,6 +8,7 @@ const debugError = require('debug')('tuya2mqtt:error')
 const SimpleSwitch = require('./devices/simple-switch')
 const SimpleDimmer = require('./devices/simple-dimmer')
 const RGBTWLight = require('./devices/rgbtw-light')
+const VacuumCleaner = require('./devices/vacuum-cleaner')
 const GenericDevice = require('./devices/generic-device')
 const utils = require('./lib/utils')
 
@@ -46,6 +47,9 @@ function getDevice(configDevice, mqttClient) {
             break;
         case 'RGBTWLight':
             return new RGBTWLight(deviceInfo)
+            break;
+        case 'VacuumCleaner':
+            return new VacuumCleaner(deviceInfo)
             break;
     }
     return new GenericDevice(deviceInfo)
@@ -149,13 +153,17 @@ const main = async() => {
                 const device = tuyaDevices.find(d => d.options.name === deviceTopicLevel || d.options.id === deviceTopicLevel)
                 switch (topicLength) {
                     case 3:
+                        debugCommand('2:processCommand -> '+commandTopic)
                         device.processCommand(message, commandTopic)
                         break;
                     case 4:
+                        debugCommand('4:processDpsCommand')
                         device.processDpsCommand(message)
                         break;
                     case 5:
+                        debugCommand('5:processDpsKeyCommand')
                         const dpsKey = splitTopic[topicLength-2]
+                        debugCommand('5:processDpsKeyCommand - '+ dpsKey)
                         device.processDpsKeyCommand(message, dpsKey)
                         break;
                 }

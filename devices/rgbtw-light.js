@@ -1,6 +1,5 @@
 const TuyaDevice = require('./tuya-device')
-const debug = require('debug')('tuya2mqtt:device-detect')
-const debugDiscovery = require('debug')('tuya2mqtt:discovery')
+const debug = require('debug')('tuya2mqtt:device')
 const utils = require('../lib/utils')
 
 class RGBTWLight extends TuyaDevice {

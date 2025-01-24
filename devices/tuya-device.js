@@ -37,6 +37,9 @@ class TuyaDevice {
                 this.options.issueRefreshOnPing = false
             }
         }
+        if (typeof this.config.issueDpsTopics == 'undefined') {
+            this.config.issueDpsTopics = true
+        }
 
         // Set default device data for Home Assistant device registry
         // Values may be overridden by individual devices
@@ -201,7 +204,9 @@ class TuyaDevice {
         }
 
         // Publish Generic Dps Topics
-        this.publishDpsTopics()
+        if(this.config.issueDpsTopics) {
+            this.publishDpsTopics()
+        }
     }
 
     // Publish all dps-values to topic
