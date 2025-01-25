@@ -27,17 +27,20 @@ class VacuumCleaner extends TuyaDevice {
 
         // Map generic DPS topics to device specific topic names
         this.deviceTopics = {
-            power_state: {
+            power: {
                 key: this.config.dpsPower,
-                type: 'bool'
+                type: 'bool',
+                readOnly: false
             },
-            mode_state: {
+            mode: {
                 key: this.config.dpsMode,
-                type: 'str'
+                type: 'str',
+                readOnly: false
             },
-            direction_control_state: {
+            direction_control: {
                 key: this.config.dpsDirection,
-                type: 'str'
+                type: 'str',
+                readOnly: false
             },
             working_status: {
                 key: this.config.dpsStatus,
@@ -67,9 +70,10 @@ class VacuumCleaner extends TuyaDevice {
                 topicMin: 0,
                 topicMax: 100
             },
-            suction_state: {
+            suction: {
                 key: this.config.dpsSuction,
-                type: 'str'
+                type: 'str',
+                readOnly: false
             },
             clean_area: {
                 key: this.config.dpsArea,
@@ -83,19 +87,22 @@ class VacuumCleaner extends TuyaDevice {
                 topicMin: 0,
                 topicMax: 9999
             },
-            volume_set_state: {
+            volume_set: {
                 key: this.config.dpsVolumn,
                 type: 'int',
                 topicMin: 0,
-                topicMax: 100
+                topicMax: 100,
+                readOnly: false
             },
-            language_state: {
+            language: {
                 key: this.config.dpsLang,
-                type: 'str'
+                type: 'str',
+                readOnly: false
             },
-            clean_speed_state: {
+            clean_speed: {
                 key: this.config.dpsSpeed,
-                type: 'str'
+                type: 'str',
+                readOnly: false
             }
         }
 

@@ -2,7 +2,7 @@
 const fs = require('fs')
 const mqtt = require('mqtt')
 const json5 = require('json5')
-const debug = require('debug')('tuya2mqtt:info')
+const debugInfo = require('debug')('tuya2mqtt:info')
 const debugCommand = require('debug')('tuya2mqtt:command')
 const debugError = require('debug')('tuya2mqtt:error')
 const SimpleSwitch = require('./devices/simple-switch')
@@ -26,7 +26,7 @@ async function processExit(exitCode) {
     for (let tuyaDevice of tuyaDevices) {
         tuyaDevice.device.disconnect()
     }
-    if (exitCode || exitCode === 0) debug('Exit code: '+exitCode)
+    if (exitCode || exitCode === 0) debugInfo('Exit code: ' + exitCode)
     await utils.sleep(1)
     process.exit()
 }
@@ -55,6 +55,7 @@ function getDevice(configDevice, mqttClient) {
     return new GenericDevice(deviceInfo)
 }
 
+// Initialisation of all defined devices
 function initDevices(configDevices, mqttClient) {
     for (let configDevice of configDevices) {
         const newDevice = getDevice(configDevice, mqttClient)
@@ -62,20 +63,8 @@ function initDevices(configDevices, mqttClient) {
     }
 }
 
-// Republish devices 2x with 30 seconds sleep if restart of HA is detected
-async function republishDevices() {
-    for (let i = 0; i < 2; i++) {
-        debug('Resending device config/state in 30 seconds')
-        await utils.sleep(30)
-        for (let device of tuyaDevices) {
-            device.republish()
-        }
-        await utils.sleep(2)
-    }
-}
-
 // Main code function
-const main = async() => {
+const main = async () => {
     let configDevices
     let mqttClient
 
@@ -116,7 +105,7 @@ const main = async() => {
     })
 
     mqttClient.on('connect', function (err) {
-        debug('Connection established to MQTT server')
+        debugInfo('Connection established to MQTT server')
         let topic = CONFIG.topic + '#'
         mqttClient.subscribe(topic)
         initDevices(configDevices, mqttClient)
@@ -124,14 +113,14 @@ const main = async() => {
 
     mqttClient.on('reconnect', function (error) {
         if (mqttClient.connected) {
-            debug('Connection to MQTT server lost. Attempting to reconnect...')
+            debugInfo('Connection to MQTT server lost. Attempting to reconnect...')
         } else {
-            debug('Unable to connect to MQTT server')
+            debugInfo('Unable to connect to MQTT server')
         }
     })
 
     mqttClient.on('error', function (error) {
-        debug('Unable to connect to MQTT server', error)
+        debugInfo('Unable to connect to MQTT server', error)
     })
 
     mqttClient.on('message', function (topic, message) {
@@ -140,33 +129,40 @@ const main = async() => {
             const splitTopic = topic.split('/')
             const topicLength = splitTopic.length
             const commandTopic = splitTopic[topicLength - 1]
-            const deviceTopicLevel = splitTopic[1]
+            const deviceLevel = splitTopic[1]
 
-            if (commandTopic.includes('command')) {
-                // If it looks like a valid command topic try to process it
-                debugCommand('Received MQTT message -> ', JSON.stringify({
+            // Check, if it a valid command topic try to process it
+            if (commandTopic === 'command') {
+                debugInfo('Received MQTT message -> ', JSON.stringify({
                     topic: topic,
                     message: message
                 }))
 
                 // Use device topic level to find matching device
-                const device = tuyaDevices.find(d => d.options.name === deviceTopicLevel || d.options.id === deviceTopicLevel)
+                const device = tuyaDevices.find(d => d.options.name === deviceLevel || d.options.id === deviceLevel)
                 switch (topicLength) {
                     case 3:
-                        debugCommand('2:processCommand -> '+commandTopic)
-                        device.processCommand(message, commandTopic)
+                        debugCommand('3:processCommand -> ' + message)
+                        device.processCommand(message)
                         break;
                     case 4:
-                        debugCommand('4:processDpsCommand')
-                        device.processDpsCommand(message)
+                        const deviceTopic = splitTopic[topicLength - 2]
+                        if(deviceTopic.toLowerCase() !== 'dps') {
+                            debugCommand('4:processDeviceCommand -> ' + deviceTopic)
+                            device.processDeviceCommand(message, deviceTopic)
+                        } else {
+                            debugCommand('4:processDpsCommand ->' + message)
+                            device.processDpsCommand(message)
+                        }
                         break;
                     case 5:
-                        debugCommand('5:processDpsKeyCommand')
-                        const dpsKey = splitTopic[topicLength-2]
-                        debugCommand('5:processDpsKeyCommand - '+ dpsKey)
+                        const dpsKey = splitTopic[topicLength - 2]
+                        debugCommand('5:processDpsKeyCommand - DPS Key = ' + dpsKey)
                         device.processDpsKeyCommand(message, dpsKey)
                         break;
                 }
+            } else {
+                debugError('Only command messages allowed!!!')
             }
         } catch (e) {
             debugError(e)

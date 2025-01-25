@@ -29,15 +29,17 @@ class SimpleDimmer extends TuyaDevice {
         this.deviceTopics = {
             state: {
                 key: this.config.dpsPower,
-                type: 'bool'
+                type: 'bool',
+                readOnly: false
             },
-            brightness_state: { 
+            brightness: { 
                 key: this.config.dpsBrightness,
                 type: 'int',
                 topicMin: 0,
                 topicMax: 100,
                 stateMath: brightnessStateMath,
-                commandMath: brightnessCommandMath
+                commandMath: brightnessCommandMath,
+                readOnly: false
             }
         }
 

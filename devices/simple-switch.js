@@ -13,7 +13,8 @@ class SimpleSwitch extends TuyaDevice {
         this.deviceTopics = {
             state: {
                 key: this.config.dpsPower,
-                type: 'bool'
+                type: 'bool',
+                readOnly: false
             }
         }
 

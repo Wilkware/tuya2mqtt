@@ -48,34 +48,40 @@ class RGBTWLight extends TuyaDevice {
         this.deviceTopics = {
             state: {
                 key: this.config.dpsPower,
-                type: 'bool'
+                type: 'bool',
+                readOnly: false
             },
-            white_brightness_state: { 
+            white_brightness: { 
                 key: this.config.dpsWhiteValue,
                 type: 'int',
                 topicMin: 0,
                 topicMax: 100,
                 stateMath: whiteValueStateMath,
-                commandMath: whiteValueCommandMath
+                commandMath: whiteValueCommandMath,
+                readOnly: false
             },
-            hs_state: {
+            hs: {
                 key: this.config.dpsColor,
                 type: this.config.colorType,
-                components: 'h,s'
+                components: 'h,s',
+                readOnly: false
             },
-            color_brightness_state: {
+            color_brightness: {
                 key: this.config.dpsColor,
                 type: this.config.colorType,
-                components: 'b'
+                components: 'b',
+                readOnly: false
             },
-            hsb_state: {
+            hsb: {
                 key: this.config.dpsColor,
                 type: this.config.colorType,
-                components: 'h,s,b'
+                components: 'h,s,b',
+                readOnly: false
             },
-            mode_state: {
+            mode: {
                 key: this.config.dpsMode,
-                type: 'str'
+                type: 'str',
+                readOnly: false
             }
         }
 
