@@ -1,213 +1,350 @@
-# tuya2mqtt - Devices
-The most powerful feature in tuya2mqtt is the ability to configure devices to use friendly topics.  For some devices there exist pre-defined device templates which makes using those devices quite easy, simply add the type information to the devices.conf file and tuya2mqtt automatically creates friendly topics for that device.
 
-Friendly topics make it easy to communicate with the device in a standard way and thus integrating into various Home Automation platforms.  The topic style generally follows that used by the Home Assistant MQTT integration components and the pre-defined devices automatically send Home Assistant style MQTT discovery messages during startup to make integration with Home Assistant, or other platforms which understand Home Assistant MQTT discovery, even easier.
+# tuya2mqtt – Geräte (Devices)
 
-If the device does not have a pre-defined device template, it's possible to create a template using the [generic device template](#generic-device-templates) feature.
+## Übersicht
 
-## Pre-defined Device Templates
-Pre-defined device templates (except for the Generic Device) will always expose friendly topics for the given device in a consistent manner.  Currently the following pre-defined device templates are available:
+Die wichtigste Funktion von **tuya2mqtt** ist die Möglichkeit, Geräte so zu konfigurieren, dass sie **benutzerfreundliche MQTT-Topics** verwenden. Für einige Geräte gibt es bereits vordefinierte Gerätetemplates, die die Verwendung stark vereinfachen. Dazu musst du nur die Typinformation in der `devices.conf`-Datei hinzufügen. **tuya2mqtt** erstellt dann automatisch die benutzerfreundlichen Topics für das jeweilige Gerät.
 
-| Device Type | Descrition |
-| --- | --- |
-| SimpleSwitch | Supports simple on/off devices |
-| SimpleDimmer | Supports simple devices with on/on and brightness |
-| RGBTWLight | Supports color/white lights with optional color temerature support |
-| GenericDevice | Allows defining a custom template for any device |
+Diese Topics ermöglichen eine einfache Kommunikation mit dem Gerät in standardisierter Form – ideal zur Integration in **Smart-Home-Plattformen** wie **IP Symcon**.
 
-To use a device template, simply add the "type" option to the devices.conf similar to the following example:
-```
+## Vordefinierte Gerätetemplates
+
+| Gerätetyp                       | Beschreibung                                                   |
+|---------------------------------|----------------------------------------------------------------|
+| [SimpleSwitch](#SimpleSwitch)   | Unterstützt einfache Geräte mit Ein/Aus                        |
+| [SimpleDimmer](#SimpleDimmer)   | Unterstützt Geräte mit Ein/Aus und Helligkeit                  |
+| [RGBTWLight](#RGBTWLight)       | Unterstützt Farb-/Weißlicht mit optionaler Farbtemperatur      |
+| [CeilingFan](#CeilingFan)       | Unterstützt Deckenventilator inkl. Licht und Geschwindigkeit   |
+| [VacuumCleaner](#VacuumCleaner) | Unterstützt einfache Saugroboter                               |
+| [GenericDevice](#VacuumCleaner) | Benutzerdefiniertes Template für beliebige Geräte              |
+
+Um ein Gerätetemplate zu verwenden, füge einfach die Option "type" in der Datei `devices.conf` hinzu, zum Beispiel so:
+```json
 [
   {
-    name: 'Tuya Device 1',
-    id: '86435357d8b123456789',
-    key: '8b2a69c9876543210',
-    type: 'RGBTWLight'
+    "name": "Tuya Device 1",
+    "id": "86435357d8b123456789",
+    "key": "8b2a69c9876543210",
+    "type": "VacuumCleaner"
   }
 ]
 ```
-Once the device type is defined tuya2mqtt will attempt to create friendly topics for that device type on connection to the device.  Each device type defines specific defaults for DPS values which are typical for common Tuya devices and some, like RGBTWLight, have logic to attempt to detect different variation by querying the device.  The goal is that, in most cases, simply adding the type is all that is needed, however, in many cases it is also possible to override the manual settings for the device.  The device friendly topics and options for each device are documented below.
+
+Sobald der Gerätetyp definiert ist, versucht tuya2mqtt, beim Herstellen der Verbindung automatisch die MQTT-Topics für diesen Gerätetyp zu erstellen.
+
+Jeder Gerätetyp bringt vordefinierte Standardwerte für die DPS-Schlüssel mit, die für typische Tuya-Geräte üblich sind. Einige Gerätetypen – z. B. RGBTWLight – enthalten zusätzlich eine Logik zur automatischen Erkennung von Variationen, indem das Gerät aktiv abgefragt wird.
+
+Das Ziel ist, dass in den meisten Fällen das einfache Hinzufügen des "type"-Eintrags bereits ausreicht. Bei Bedarf lassen sich die Einstellungen jedoch auch manuell überschreiben.
+
+Die verfügbaren MQTT-Topics und Optionen für jeden Gerätetyp sind in den folgenden Abschnitten dokumentiert.
 
 ### SimpleSwitch
-Simple devices that support only on/off.
-| Topic | Description | Values |
-| --- | --- | --- |
-| state | Power state | on/off |
-| command | Set power state | on/off, 0/1, true/false |
 
-Manual configuration options:
-| Option | Description | Default |
-| --- | --- | --- |
-| dpsPower | DPS key for power state | 1 |
+Einfaches Gerät mit nur Ein/Aus-Funktion.
+
+**Topics:**
+
+| Topic    | Beschreibung    | Werte                   |
+|----------|-----------------|-------------------------|
+| state    | Betriebszustand | on / off                |
+| command  | Schaltbefehl    | on/off, 0/1, true/false |
+
+**Manuelle Konfigurationsoptionen:**
+
+| Option    | Beschreibung               | Standard |
+|-----------|----------------------------|----------|
+| dpsPower  | DPS-Schlüssel für Zustand  | 1        |
 
 ### SimpleDimmer
-Simple device with on/off and brightness functions (dimmer switches or lights)
-| Topic | Description | Values |
-| --- | --- | --- |
-| state | Power state | on/off |
-| command | Set power state | on/off, 0/1, true/false |
-| brightness_state | Brightness in % | 0-100 |
-| brightness_command | set brightness in % | 0-100 |
 
-Manual configuration options:
-| Option | Description | Default |
-| --- | --- | --- |
-| dpsPower | DPS key for power state | 1 |
-| dpsBrightness | DPS key for brightness state | 2 |
-| brightnessScale | Scale for brightness DPS value | 255 |
+Gerät mit Ein/Aus und Helligkeit (z. B. Dimmer).
+
+**Topics:**
+
+| Topic                 | Beschreibung               | Werte                   |
+|-----------------------|----------------------------|-------------------------|
+| state                 | Betriebszustand            | on / off                |
+| command               | Schaltbefehl               | on/off, 0/1, true/false |
+| brightness_state      | Helligkeit in %            | 0–100                   |
+| brightness_command    | Setze Helligkeit in %      | 0–100                   |
+
+**Manuelle Konfigurationsoptionen:**
+
+| Option           | Beschreibung                   | Standard |
+|------------------|--------------------------- ----|----------|
+| dpsPower         | DPS-Schlüssel für Strom        | 1        |
+| dpsBrightness    | DPS-Schlüssel für Helligkeit   | 2        |
+| brightnessScale  | Skalierung für Helligkeit      | 255      |
 
 ### RGBTWLight
-The RGBTWLight device support Tuya color lights (bulbs and LEDs). Tuya lights operate in either white or color mode.  The RGBTWLight device automatically switches between modes on certain conditions as documented below:
-| Condition | Mode |
-| --- | --- |
-| Changes white brightness | white |
-| Changes to color temperature (for device with color temp support) | white |
-| Saturation < 10 % | white |
-| Saturation >= 10 % | color |
-| All other changes | current mode |
 
-This means changing the hue of the light will only switch to color mode if saturation is also >= 10%.  Some lights automatically attempt to switch to color mode when any HSB value is updated however, if the saturation setting remains < 10%, tuya2mqtt will force the light back to white mode in this case.  This can cause a very quick flicker when chaning hue or color brightness while the saturation remains below the 10% threshold.  I expect this not to be a common issue and implemented this in an attempt to make all tuya lights behave in a consistent way.
+Das Gerät RGBTWLight unterstützt Tuya-Farblichtquellen (z. B. Glühbirnen und LED-Streifen). Tuya-Lichter arbeiten entweder im Weißmodus oder im Farbenmodus. Das RGBTWLight-Gerät wechselt automatisch zwischen den Modi basierend auf folgenden Bedingungen:
 
-When the bulb is in white mode, saturation values in the friendly topics are always reported as 0%.  This is true even if the mode is toggled manually from color to white mode using the mode_command topic or the Tuya/SmartLife app.  When the light is toggled back to color mode, saturation will be reported at the correct level.  This is done primarly as a means to indicate color state to automation platforms that don't have a concept of white/color mode, otherwise a light in white mode may still be represented with a color icon in the platforms UI.
+| Bedingung                                       | Modus           |
+| ----------------------------------------------- | --------------- |
+| Änderung der Weißhelligkeit                     | weiß            |
+| Änderung der Farbtemperatur (falls unterstützt) | weiß            |
+| Sättigung < 10 %                                | weiß            |
+| Sättigung ≥ 10 %                                | farbe           |
+| Alle anderen Änderungen                         | aktueller Modus |
 
-Not all devices support color temperature and the script attempts to detect this capability and enables the color temperature topics only when found.  Color temperature topics report in Mireds (commonly used by automation tools) and the default range supports roughly 2500K-6500K.  This works reasonably well for most available Tuya devices, even if they are not exactly in this range, but, if you know a devices specific color range, the limits can be manually specified to more accurately reflect the exact color temperature.
+Das bedeutet: Ein Wechsel des Farbtons führt nur dann zum Farbenmodus, wenn die Sättigung ebenfalls ≥ 10 % beträgt. Manche Lichter versuchen zwar automatisch, in den Farbenmodus zu wechseln, sobald irgendein HSB-Wert geändert wird – aber wenn die Sättigung unter 10 % bleibt, zwingt tuya2mqtt die Lampe zurück in den Weißmodus. Das kann zu einem kurzen Flackern führen, wenn man z. B. Farbton oder Farbhelligkeit verändert, während die Sättigung noch unter dem Schwellenwert liegt. Dies ist allerdings selten und wurde bewusst so implementiert, um ein konsistentes Verhalten über alle Tuya-Leuchten hinweg zu gewährleisten.
 
-Tuya bulbs store their HSB color value in a single DPS key using a custom format.  Some bulbs use a 14 character format, referred to as HSBHEX, which represents the saturation and brightness values from 0-255 as 2 character hex, while the others use a 12 character format, referred to as HSB, which still uses hex values, but stores saturation and brightness values from 0-1000 as 4 character hex.  The code attempts to autodetect the format used by the bulb and perform the proper conversion in all cases, but this can be overridden for cases where the dection method fails.
+Wenn die Lampe im Weißmodus ist, wird die Sättigung in den Friendly Topics immer mit 0 % angegeben – auch dann, wenn man manuell mit mode_command oder der Tuya/SmartLife-App zwischen den Modi umschaltet. Wechselt die Lampe zurück in den Farbenmodus, wird die korrekte Sättigung wiedergegeben. Dies dient insbesondere dazu, Automatisierungsplattformen ohne explizite Weiß-/Farben-Modusunterscheidung zu unterstützen – andernfalls könnte eine weiße Lampe mit Farbsymbol angezeigt werden.
 
-| Topic | Description | Values |
-| --- | --- | --- |
-| state | Power state | on/off |
-| command | Set power state | on/off, 0/1, true/false |
-| white_brightness_state | White mode brightness in % | 0-100 |
-| white_brightness_command | Set white mode brightness in % | 0-100 |
-| color_brightness_state | Color mode brightness in % | 0-100 |
-| color_brightness_command | Set white mode brightness in % | 0-100 |
-| hs_state | Hue, saturation % | H,S (Hue 0-360, Saturation 0-100) |
-| hs_command | Set hue, saturation % | H,S (Hue 0-360, Saturation 0-100) |
-| hsb_state | Hue, saturation %, brightness % | H,S,B (Hue 0-360, Saturation 0-100, Brightness 0-100) |
-| hsb_command | Set hue, saturation %, brightness % | H,S,B (Hue 0-360, Saturation 0-100, Brightness 0-100) |
-| mode_state | White/Color mode | 'white', 'colour' (some devices also support scenes here) |
-| mode_command | Set white/color mode | 'white', 'colour' (some devices also support scenes here) |
-| color_temp_state | Color temperature in mireds (only available if device support color temp) | 154-400 (defult range, can be overridden) |
-| color_temp_command | Set color temperature in mireds (only available if device support color temp)  | 154-400 (defult range, can be overridden) |
+Nicht alle Geräte unterstützen Farbtemperatur. Das Skript versucht, diese Fähigkeit automatisch zu erkennen und aktiviert die entsprechenden Topics nur, wenn sie vorhanden sind. Farbtemperaturen werden in Mireds (ein in Automatisierungstools gängiges Maß) übermittelt. Der Standardbereich entspricht etwa 2500 K–6500 K. Für die meisten Tuya-Leuchten funktioniert dies gut. Wer die genauen Grenzen kennt, kann diese manuell anpassen.
 
-Manual configuration options:
-| Option | Description | Default (common detected values) |
-| --- | --- | --- |
-| dpsPower | DPS key for power state | Auto Detect (1,20) |
-| dpsMode | DPS key for white/color mode state | Auto Detect (2,21) |
-| dpsWhiteValue | DPS key for white mode brightness | Auto Detect (3,22) |
-| whiteValueScale | White mode brightness DPS scale | Auto Detect (255, 1000) |
-| dpsColorTemp | DPS key for color temperature | Auto Detect (4,23) |
-| minColorTemp | Min color temperature in Mireds | 154 (~6500K) |
-| maxColorTemp | Max color temperature in Mireds | 400 (~2500K) |
-| colorTempScale | Color temperature DPS key scale | Auto Detect (255, 1000) |
-| dpsColor | DPS key for HSB color values | Auto Detect (5,24) |
-| colorType | Tuya color format for color DPS key | Auto Detect (hsb, hsbhex) |
+Tuya-Leuchten speichern ihre HSB-Farbwerte in einem einzigen DPS-Schlüssel mit einem eigenen Format. Manche Leuchten verwenden ein 14-stelliges Format (HSBHEX), das Sättigung und Helligkeit als 2-stellige Hex-Werte (0–255) darstellt. Andere nutzen ein 12-stelliges Format (HSB), wobei Sättigung und Helligkeit als 4-stellige Hex-Werte (0–1000) gespeichert werden. Das System versucht, das Format automatisch zu erkennen und korrekt umzuwandeln – kann aber bei Bedarf überschrieben werden.
 
-To use the manual configuration options simply add them to device.conf file after defining the device type like the following example:
-```
+**Topics:**
+
+| Topic                      | Beschreibung                                       | Wertebereich                              |
+| -------------------------- | -------------------------------------------------- | ----------------------------------------- |
+| state                      | Schaltzustand                                      | on / off                                  |
+| command                    | Setzt Schaltzustand                                | on/off, 0/1, true/false                   |
+| white\_brightness\_state   | Helligkeit im Weißmodus in %                       | 0–100                                     |
+| white\_brightness\_command | Setzt Helligkeit im Weißmodus in %                 | 0–100                                     |
+| color\_brightness\_state   | Helligkeit im Farbenmodus in %                     | 0–100                                     |
+| color\_brightness\_command | Setzt Helligkeit im Farbenmodus in %               | 0–100                                     |
+| hs\_state                  | Farbton, Sättigung                                 | H,S (H: 0–360, S: 0–100)                  |
+| hs\_command                | Setzt Farbton, Sättigung                           | H,S (H: 0–360, S: 0–100)                  |
+| hsb\_state                 | Farbton, Sättigung, Helligkeit                     | H,S,B (H: 0–360, S: 0–100, B: 0–100)      |
+| hsb\_command               | Setzt Farbton, Sättigung, Helligkeit               | H,S,B (H: 0–360, S: 0–100, B: 0–100)      |
+| mode\_state                | Weiß-/Farbmodus                                    | 'white', 'colour' (teilweise auch Szenen) |
+| mode\_command              | Setzt Weiß-/Farbmodus                              | 'white', 'colour' (teilweise auch Szenen) |
+| color\_temp\_state         | Farbtemperatur in Mireds (falls unterstützt)       | 154–400 (Standardbereich, anpassbar)      |
+| color\_temp\_command       | Setzt Farbtemperatur in Mireds (falls unterstützt) | 154–400 (Standardbereich, anpassbar)      |
+
+**Manuelle Konfigurationsoptionen:**
+
+| Option          | Beschreibung                           | Standard (automatische Erkennung) |
+| --------------- | -------------------------------------- | --------------------------------- |
+| dpsPower        | DPS-Schlüssel für Schaltzustand        | Auto (1, 20)                      |
+| dpsMode         | DPS für Weiß-/Farbmodus                | Auto (2, 21)                      |
+| dpsWhiteValue   | DPS für Helligkeit im Weißmodus        | Auto (3, 22)                      |
+| whiteValueScale | Skalierung für Helligkeit im Weißmodus | Auto (255, 1000)                  |
+| dpsColorTemp    | DPS für Farbtemperatur                 | Auto (4, 23)                      |
+| minColorTemp    | Minimale Farbtemperatur in Mireds      | 154 (\~6500 K)                    |
+| maxColorTemp    | Maximale Farbtemperatur in Mireds      | 400 (\~2500 K)                    |
+| colorTempScale  | Skalierung der Farbtemperatur          | Auto (255, 1000)                  |
+| dpsColor        | DPS für HSB-Farbwerte                  | Auto (5, 24)                      |
+| colorType       | Tuya-Farbformat für DPS                | Auto ('hsb', 'hsbhex')            |
+
+**Beispielkonfiguration:**
+```json
 [
   {
-    name: 'Tuya Device 1',
-    id: '86435357d8b123456789',
-    key: '8b2a69c9876543210',
-    type: 'RGBTWLight',
-    dpsPower: 31,
-    dpsMode: 32,
-    dpsWhiteValue: 33,
-    whiteValueScale: 255,
-    dpsColorTemp: 34,
-    minColorTemp: 165,
-    maxColorTemp: 385,
-    colorTempScale: 255,
-    dpsColor: 34,
-    colorType: 'hsbhex'
+    "name": "Tuya Device 1",
+    "id": "86435357d8b123456789",
+    "key": "8b2a69c9876543210",
+    "type": "RGBTWLight",
+    "dpsPower": 31,
+    "dpsMode": 32,
+    "dpsWhiteValue": 33,
+    "whiteValueScale": 255,
+    "dpsColorTemp": 34,
+    "minColorTemp": 165,
+    "maxColorTemp": 385,
+    "colorTempScale": 255,
+    "dpsColor": 34,
+    "colorType": "hsbhex"
   }
 ]
 ```
 
-## Generic Device Templates
-If a pre-defined device tempate does not exist for the device, or does not expose all capabilities of the device, there are still mulitple options available to control the devices.  One method is to use the DPS topics directly to control the device using either native Tuya JSON commands or via the DPS key values by using the DPS key topics (see [DPS Topics](TOPICS.md#dps-topics)).  The second method is to create a template for your device to map DPS key values to friendly topics.  The GenericDevice type allows you to manually create a template for any device using the same templating engine as the pre-defined device templates.  Once you've created a tempalte for your device, it can be re-used with other, similar devices and you can submit your template to the tuya2mqtt project for other to use, or even for inclusion at a pre-defined device template in the future.
+### CeilingFan
 
-Creating a device template is relatively straightforward, but first you must know what DPS keys your devices uses.  The GenericDevice attempts to query all device DPS states on startup, but some devices to not respond to this command, however, the generic device will ALWAYS report any DPS topics from which it receives upated.  The easiest way to determine how your device uses it's DPS topics is to connect to the MQTT broker via a tool like MQTT Explorer or mosquitto_sub, and watch the topics as you manipulate the device with the Tuya/Smartlife app.
+Ein Deckenventilator inkl. Licht, Geschwindigkeit und Ein/Aus-Funktion.
 
-Once you have a reasonable idea of how the device uses it's DPS key values, you can create a template.  A simple template for a dimmer looks something like this:
-```
+**Topics:**
+
+| Topic                    | Beschreibung                      | Wertebereich                                   |
+| ------------------------ | --------------------------------- | ---------------------------------------------- |
+| light\_state             | Schaltzustand Licht               | true / false                                   |
+| light\_command           | Schaltet Licht ein/aus            | on/off, 0/1, true/false                   |
+| color\_temp\_state       | Aktuelle Farbtemperatur           | 0, 500 oder 1000                               |
+| color\_temp\_command     | Setzt Farbtemperatur              | 0, 500 oder 1000                               |
+| fan\_state               | Schaltzustand Lüfter              | true / false                                   |
+| fan\_command             | Schaltet Lüfter ein/aus           | on/off, 0/1, true/false                   |
+| speed\_state             | Aktuelle Lüftergeschwindigkeit    | 1–6                                            |
+| speed\_command           | Setzt Lüftergeschwindigkeit       | 1–6                                            |
+| direction\_state         | Aktuelle Lüfter-Richtung          | 'Forward' oder 'Reverse'                       |
+| direction\_command       | Setzt Lüfter-Richtung             | 'Forward' oder 'Reverse'                       |
+| countdown\_left\_state   | Verbleibende Countdown-Zeit (Min) | 0–540                                          |
+| countdown\_left\_command | Setzt Countdown-Zeit              | 0–540                                          |
+| beep\_state              | Status Signalton                  | true / false                                   |
+| beep\_command            | Signalton ein/aus                 | on/off, 0/1, true/false                   |
+
+**Manuelle Konfigurationsoptionen:**
+
+| Option       | Beschreibung                      | Standard (automatische Erkennung) |
+| ------------ | --------------------------------- | --------------------------------- |
+| dpsLight     | DPS für Schaltzustand des Lichts  | 20                                |
+| dpsColorTemp | DPS für Farbtemperatur            | 23                                |
+| dpsFan       | DPS für Lüfter                    | 60                                |
+| dpsSpeed     | DPS für Lüftergeschwindigkeit     | 62                                |
+| dpsDirection | DPS für Lüfterrichtung            | 63                                |
+| dpsCountdown | DPS für Countdown-Timer (Minuten) | 64                                |
+| dpsBeep      | DPS für Signalton                 | 66                                |
+
+### VacuumCleaner
+
+Steuerung von Saugrobotern
+
+| Topic                       | Beschreibung                       | Wertebereich                       |
+| --------------------------- | ---------------------------------- | ---------------------------------- |
+| power\_state                | Schaltzustand des Geräts           | true / false                       |
+| power\_command              | Schaltet das Gerät ein/aus         | true / false                       |
+| mode\_state                 | Aktueller Reinigungsmodus          | 'standby', 'smart', 'wall_follow', 'spiral', 'partial_bow', 'chargego' |
+| mode\_command               | Setzt Reinigungsmodus              | 'standby', 'smart', 'wall_follow', 'spiral', 'partial_bow', 'chargego' |
+| direction\_control\_state   | Aktuelle Steuerungsrichtung        | 'forward', 'turn_left', 'turn_right', 'stop', 'exit' |
+| direction\_control\_command | Setzt Steuerungsrichtung           | 'forward', 'turn_left', 'turn_right', 'stop', 'exit' |
+| working\_status\_state      | Gerätestatus (nur lesbar)          | 'standby', 'smart_clean', 'wall_clean', 'spot_clean', 'mop_clean', 'goto_charge', 'charging', 'charge_done', 'paused', 'cleaning', 'sleep' |
+| battery\_left\_state        | Akkustand in %                     | 0–100                              |
+| edge\_brush\_state          | Verschleißstatus Seitenbürste in % | 0–100                              |
+| roll\_brush\_state          | Verschleißstatus Hauptbürste in %  | 0–100                              |
+| filter\_state               | Filterzustand in %                 | 0–100                              |
+| suction\_state              | Saugstärke                         | 'strong', 'normal', 'gentle'       |
+| suction\_command            | Setzt Saugstärke                   | 'strong', 'normal', 'gentle'       |
+| clean\_area\_state          | Gereinigte Fläche in m²            | 0–9999                             |
+| clean\_time\_state          | Reinigungsdauer in Minuten         | 0–9999                             |
+| volume\_set\_state          | Lautstärke in %                    | 0–100                              |
+| volume\_set\_command        | Setzt Lautstärke                   | 0–100                              |
+| language\_state             | Aktuelle Spracheinstellung         | 'english', 'german', 'french', 'russian', 'spanish', 'italian' |
+| language\_command           | Setzt Sprache                      | 'english', 'german', 'french', 'russian', 'spanish', 'italian' |
+| clean\_speed\_state         | Reinigungsgeschwindigkeit          | 'careful_clean', 'speed_clean'     |
+| clean\_speed\_command       | Setzt Reinigungsgeschwindigkeit    | 'careful_clean', 'speed_clean'     |
+
+**Manuelle Konfigurationsoptionen:**
+
+| Option       | Beschreibung                                  | Standard (automatische Erkennung) |
+| ------------ | --------------------------------------------- | --------------------------------- |
+| dpsPower     | DPS für Schaltzustand                         | 2                                 |
+| dpsMode      | DPS für Reinigungsmodus                       | 3                                 |
+| dpsDirection | DPS für Richtungssteuerung                    | 4                                 |
+| dpsStatus    | DPS für Gerätestatus (nur lesend)             | 5                                 |
+| dpsBattery   | DPS für Akkustand (nur lesend)                | 6                                 |
+| dpsEdge      | DPS für Zustand der Seitenbürste (nur lesend) | 7                                 |
+| dpsRoll      | DPS für Zustand der Hauptbürste (nur lesend)  | 8                                 |
+| dpsFilter    | DPS für Filterzustand (nur lesend)            | 9                                 |
+| dpsSuction   | DPS für Saugstärke                            | 14                                |
+| dpsArea      | DPS für gereinigte Fläche (nur lesend)        | 16                                |
+| dpsTime      | DPS für Reinigungszeit (nur lesend)           | 17                                |
+| dpsVolumn    | DPS für Lautstärkeeinstellung                 | 28                                |
+| dpsLang      | DPS für Spracheinstellung                     | 29                                |
+| dpsSpeed     | DPS für Reinigungsgeschwindigkeit             | 101                               |
+
+### GenericDevice (Generische Gerätetemplates)
+
+Falls für dein Gerät kein vordefiniertes Template existiert oder dieses nicht alle Funktionen des Geräts abdeckt, gibt es dennoch mehrere Möglichkeiten, das Gerät zu steuern:
+
+1. Direkte Verwendung der DPS-Topics:  
+Du kannst die Steuerung über die DPS-Topics direkt vornehmen – entweder mit nativen Tuya-JSON-Befehlen oder durch gezielte Nutzung der DPS-Schlüsselwerte.
+
+2. Erstellen eines eigenen Templates:  
+Alternativ kannst du ein eigenes Template für dein Gerät erstellen, in dem du DPS-Schlüssel zu benutzerfreundlichen MQTT-Topics zuordnest. Der Gerätetyp GenericDevice erlaubt es, solche Templates manuell zu definieren – unter Verwendung derselben Template-Engine wie die vordefinierten Gerätetemplates.
+
+Sobald du ein eigenes Template erstellt hast, kannst du es auch für andere, ähnliche Geräte wiederverwenden.
+
+**Wie erstellt man ein Gerätetemplate?**
+
+Das Erstellen eines Templates ist relativ einfach. Zunächst musst du jedoch wissen, welche DPS-Schlüssel dein Gerät verwendet.
+
+Der Typ GenericDevice versucht beim Start, alle verfügbaren DPS-Zustände vom Gerät abzufragen. Manche Geräte antworten jedoch nicht auf diese Anfrage. Dennoch werden alle empfangenen DPS-Topics immer automatisch gemeldet, sobald das Gerät Daten sendet.
+
+Die einfachste Methode zur Ermittlung der verwendeten DPS-Schlüssel besteht darin, dich mit einem Tool wie MQTT Explorer oder mosquitto_sub mit dem MQTT-Broker zu verbinden. Beobachte die Topics, während du dein Gerät mit der Tuya- oder SmartLife-App bedienst.
+
+Sobald du ein gutes Verständnis davon hast, welche DPS-Werte für welche Funktionen zuständig sind, kannst du ein passendes Template erstellen.
+
+Ein einfaches Beispiel-Template für einen Dimmer sieht so aus:
+
+```json
 [
   {
-    name: 'Tuya Device 1',
-    id: '86435357d8b123456789',
-    key: '8b2a69c9876543210',
-    template: {
-      state: {
-        key: 1,
-        type: 'bool'
+    "name": "Tuya Device 1",
+    "id": "1234567890",
+    "key": "abcdefghij",
+    "template": {
+      "state": {
+        "key": 1,
+        "type": "bool"
       },
-      brightness_state: { 
-        key: 2,
-        type: 'int',
-        topicMin: 1,
-        topicMax: 100,
-        stateMath: '/2.55',
-        commandMath: '*2.55'
+      "brightness_state": {
+        "key": 2,
+        "type": "int",
+        "topicMin": 1,
+        "topicMax": 100,
+        "stateMath": "/2.55",
+        "commandMath": "*2.55"
       }
     }
   }
 ]
 ```
-The template above defines two topics "state" and "brightness_state", and the template engine automatically creates the corresponding command topics, in this case specifically "command" and "brightness_command".
+Das oben gezeigte Template definiert zwei Topics: `state` und `brightness_state`. Die Template-Engine erstellt automatisch die entsprechenden Befehls-Topics, in diesem Fall also `command` und `brightness_command`.
 
-The "state" topic maps to DPS key 1, and uses a bool (true/false) value in the DPS key.  Now you will be able to see "on/off" state in the state topic instead of having to read the true/false value from the DPS/1 topic
+Das Topic `state` ist mit dem DPS-Schlüssel 1 verknüpft und verwendet einen booleschen Wert (true/false).
+Damit kannst du nun den Ein-/Aus-Zustand im Topic `state` erkennen, anstatt den Rohwert true oder false direkt vom Topic DPS/1 interpretieren zu müssen.
 
-The the "brightness_state" topic maps to DPS key 2, and this value defines the brightness using an integer in the 1-255 scale.  We define the value as an integer (type: 'int') and the stateMath and commandMath values allow transforming the raw DPS value into a more friendly value that will be presented in the topic.  In this case the raw DPS value will be divided by 2.55 before being published to the state, and and received commands will be mulitpled by that same value, converting the 1-255 to a simple 1-100 scale.  Note that the topicMin and topicMax values set the minimum and maximum values that the state topic will report and that the command topic will accept.  These values are "post-math" for state topics, and "pre-math" for command topics.
+Das Topic `brightness_state` ist mit dem DPS-Schlüssel 2 verknüpft. Dieser Wert definiert die Helligkeit als Ganzzahl im Bereich 1–255. Wir definieren diesen Wert als Ganzzahl (type: 'int'). Mithilfe von `stateMath` und `commandMath` lässt sich der Rohwert so umrechnen, dass er in einer benutzerfreundlicheren Skala (1–100 %) im MQTT-Topic erscheint.
+In diesem Fall wird der DPS-Wert durch 2,55 geteilt, bevor er im State-Topic veröffentlicht wird. Umgekehrt werden eingehende Befehle mit 2,55 multipliziert, um den MQTT-Wert zurück ins Tuya-Format zu übersetzen. Dadurch entsteht eine intuitive 0–100 %-Skala für die Benutzeroberfläche, obwohl intern 1–255 verwendet wird.
 
-The following tables define the available template value types and their options:
+Beachte: Die Werte `topicMin` und `topicMax` legen den minimalen und maximalen Wert für das State- bzw. Command-Topic fest.
 
-### Boolean values
-| option | value |
-| --- | --- |
-| type | 'bool' |
-| key | DPS key of the value |
+Diese Werte gelten nach der Rechenoperation `post-math` für State-Topics und vor der Rechenoperation `pre-math` für Command-Topics.
 
-### Integer values
-| option | value |
-| --- | --- |
-| type | 'int' |
-| key | DPS key of the value |
-| topicMin | Minumum value allowed for the command topic |
-| topicMax | Maximum value allowed for the command topic | 
-| stateMath | Simple math applied to the DPS key value before being published to state topic |
-| commandMath | Simple math applied to command value before being set to DPS key |
+**Verfügbare Wertetypen:**
 
-### Floating point values
-| option | value |
-| --- | --- |
-| type | 'float' |
-| key | DPS key of the value |
-| topicMin | Minumum value allowed for the command topic |
-| topicMax | Maximum value allowed for the command topic | 
-| stateMath | Simple math applied to the DPS key value before being published to state topic |
-| commandMath | Simple math applied to command value before being set to DPS key |
+- Boolesche Werte (Boolean values)
 
-### String values
-| option | value |
-| --- | --- |
-| type | 'str' |
-| key | DPS key of the value |
+| Option | Bedeutung                                                          |
+| ------ | ------------------------------------------------------------------ |
+| `type` | `'bool'` – Gibt an, dass es sich um einen Wahr/Falsch-Wert handelt |
+| `key`  | DPS-Schlüssel des Werts                                            |
 
-### Tuya HSB values (newer style Tuya, 12 character color value)
-| option | value |
-| --- | --- |
-| type | 'hsb' |
-| key | DPS key of the value |
-| components | Comma separated list of HSB components that should be included in this topic |
+- Ganzzahlige Werte (Integer values)
 
-### Tuya HSBHEX values (older style Tuya 14 character color value)
-| option | value |
-| --- | --- |
-| type | 'hsbhex' |
-| key | DPS key of the value |
-| components | Comma separated list of HSB components that should be included in this topic |
+| Option        | Bedeutung                                                                                                  |
+| ------------- | ---------------------------------------------------------------------------------------------------------- |
+| `type`        | `'int'` – Gibt an, dass es sich um einen Ganzzahlwert handelt                                              |
+| `key`         | DPS-Schlüssel des Werts                                                                                    |
+| `topicMin`    | Minimaler Wert, der im **Command-Topic** erlaubt ist                                                       |
+| `topicMax`    | Maximaler Wert, der im **Command-Topic** erlaubt ist                                                       |
+| `stateMath`   | Mathematische Umrechnung, die auf den DPS-Wert **vor der Veröffentlichung** im State-Topic angewendet wird |
+| `commandMath` | Mathematische Umrechnung, die auf den eingehenden Befehl **vor dem Setzen** des DPS-Werts angewendet wird  |
 
-Using these value types you can define templates for a wide range of devices.  Additional types and options are likely to be included in future versions of tuya2mqtt.
+- Gleitkommawerte (Float values)
+
+| Option        | Beschreibung                                                                                               |
+| ------------- | -----------------------------------------------------------------------------------------------------------|
+| `type`        | `'float'` – Gibt an, dass es sich um einen Gleitkommazahl handelt                                          |
+| `key`         | DPS-Schlüssel des Wertes                                                                                   |
+| `topicMin`    | Minimaler Wert, der im **Command-Topic** erlaubt ist                                                       |
+| `topicMax`    | Maximaler Wert, der im **Command-Topic** erlaubt ist                                                       |
+| `stateMath`   | Mathematische Umrechnung, die auf den DPS-Wert **vor der Veröffentlichung** im State-Topic angewendet wird |
+| `commandMath` | Mathematische Umrechnung, die auf den eingehenden Befehl **vor dem Setzen** des DPS-Werts angewendet wird  |
+
+- Zeichenkette (String values)
+
+| Option        | Beschreibung                                                                                               |
+| ------------- | -----------------------------------------------------------------------------------------------------------|
+| `type`        | `'str'` – Gibt an, dass es sich um eine Zeichenkette handelt                                               |
+| `key`         | DPS-Schlüssel des Wertes                                                                                   |
+
+- Tuya-spezifische HSB Farbwerte (newer style Tuya, 12 character color value)
+
+| Option        | Beschreibung                                                                                               |
+| ------------- | ---------------------------------------------------------------------------------------------------------- |
+| `type`        | `'hsb'` – Gibt an, dass es sich um ein HSB Datentyp handelt                                                |
+| `key`         | DPS-Schlüssel des Wertes                                                                                   |
+| `components'  | Kommagetrennte Liste von HSB-Komponenten, die in diesem Topic enthalten sein sollen                        |
+
+- Tuya-spezifische HSBHEX Farbwerte (older style Tuya 14 character color value)
+
+| Option        | Beschreibung                                                                                               |
+| ------------- | ---------------------------------------------------------------------------------------------------------- |
+| `type`        | `'hsbhex'` – Gibt an, dass es sich um ein HSB Datentyp handelt                                             |
+| `key`         | DPS-Schlüssel des Wertes                                                                                   |
+| `components'  | Kommagetrennte Liste von HSB-Komponenten, die in diesem Topic enthalten sein sollen                        |
+
+Mit diesen Wertetypen kannst du Vorlagen für eine Vielzahl von Geräten definieren. Weitere Typen und Optionen werden wahrscheinlich in zukünftigen Versionen von tuya2mqtt hinzugefügt.

@@ -1,23 +1,35 @@
 # tuya2mqtt
 
+[![NodeJs](https://img.shields.io/badge/Node.js-339933?logo=node.js&logoColor=white&style=flat-square)](https://nodejs.org)
+[![Version](https://img.shields.io/badge/Version-1.2.0-orange.svg?style=flat-square)](https://github.com/Wilkware/tuya2mqtt)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+[![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg?style=flat-square)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=8816166)
+
 # !!!! Important Note !!!!
 This repository is actually a fork of TheAgentk tuya-mqtt repro (https://github.com/TheAgentK/tuya-mqtt.git).
 But since I have changed a lot, renamed it to tuya2mqtt and wanted to use it as a private repository, there was no other way.
 
-# About
-This project is a bridge that allows locally controlling IOT devices manufactured by Tuya Inc., and sold under many different brands, via simple MQTT topics.  It effectively translate the Tuya protocol to easy to use topics.
+# !!!! Wichtiger Hinweis !!!!
+Dieses Repository ist ein Fork des tuya-mqtt-Repos von TheAgentK (https://github.com/TheAgentK/tuya-mqtt.git).
+Da ich jedoch sehr viele Änderungen vorgenommen habe, es in tuya2mqtt umbenannt und als privates Repository nutzen wollte, gab es keinen anderen Weg.
 
-Using this script requires obtaining the device ID and local keys for each of your devices after they are configured via the Tuya/Smart Life or other Tuya compatible app (there are many).  With this information it is possible to communicate locally with Tuya devices using Tuya protocol version 3.1 and 3.3 without using the Tuya Cloud service, however, getting the keys requires signing up for a Tuya IOT developer account or using one of several other alternative methods (such as dumping the memory of a Tuya based app running on Android).
+## Über das Projekt
+Dieses Projekt ist eine Brücke, die es ermöglicht, IoT-Geräte des Herstellers Tuya Inc. – die unter vielen verschiedenen Markennamen verkauft werden – lokal über einfache MQTT-Topics zu steuern. Es übersetzt effektiv das Tuya-Protokoll in leicht verständliche MQTT-Themen.
 
-To acquire keys for your device please see the instructions at the TuyAPI project (on which this script is based) available at the [TuyAPI GitHub site](https://github.com/codetheweb/tuyapi/blob/master/docs/SETUP.md).
+Die Nutzung dieses Skripts erfordert, dass für jedes Gerät die Device-ID und der lokale Schlüssel (local key) beschafft wird, nachdem die Geräte über die Tuya/Smart Life-App oder eine andere kompatible Tuya-App eingerichtet wurden. Mit diesen Informationen ist es möglich, lokal mit Tuya-Geräten zu kommunizieren – ganz ohne die Tuya-Cloud.
+Das Beschaffen der Schlüssel setzt jedoch die Registrierung für ein Tuya IoT Developer-Konto voraus oder die Nutzung alternativer Methoden (z. B. das Auslesen des Speichers einer Tuya-basierten Android-App).
 
-**Acquiring device keys is outside the scope of this project!** Issues opened regarding acquiring keys will likely be closed without comment. Please verify that your device can be queried and controlled via tuya-cli before opening any issue.  If your device can't be controlled by tuya-cli then it cannot be used with this project.
+Anleitungen zum Ermitteln der Gerätedaten findest du im TuyAPI-Projekt, auf dem dieses Skript basiert:
+👉 [TuyAPI GitHub Site](https://github.com/codetheweb/tuyapi/blob/master/docs/SETUP.md).
 
-**!!!!!!!!!! Important information regarding the 3.0 release !!!!!!!!!!**\
-The 3.0.0 release (Oct 17th, 2020) is a major refactor of the tuya2mqtt project and, as such, is a breaking release for all users of previous versions.  Almost everything about the project is different, including configuration method, topic names, etc.  Upgrading users should carefully read the instructions below and assume they are starting over from scratch.
+**Das Beschaffen von Geräteschlüsseln gehört nicht zum Umfang dieses Projekts!**
+Fehlermeldungen zu diesem Thema werden wahrscheinlich ohne Kommentar geschlossen.
+Bitte prüfe vor dem Eröffnen eines Issues, ob dein Gerät sich mit tuya-cli auslesen und steuern lässt.
+Falls tuya-cli dein Gerät nicht steuern kann, wird es auch mit diesem Projekt nicht funktionieren.
 
 ## Installation
-Download this project to your system into any directory (example below uses /opt/tuya2mqtt) and install tuyapi from the same folder that the tuya2mqtt.js is in
+Lade dieses Projekt auf dein System herunter – in ein beliebiges Verzeichnis (im folgenden Beispiel wird /opt/tuya2mqtt verwendet) – und installiere TuyAPI im selben Ordner, in dem sich auch die Datei tuya2mqtt.js befindet.
+
 ```
 // switch to opt directory
 cd /opt
@@ -28,25 +40,48 @@ git clone https://github.com/wilkware/tuya2mqtt
 // change directory to the project directory
 cd tuya2mqtt
 
-//installs this project along with codetheweb/tuyapi project
+// installs this project along with codetheweb/tuyapi project
 npm install
+
+// installs this project as system service
+sudo cp ./doc/tuya2mqtt.service /etc/systemd/system
+
+// Reload systemd to recognize new or changed unit files
+sudo systemctl daemon-reexec
+sudo systemctl daemon-reload
+
+// Enable the service to start automatically on boot
+sudo systemctl enable tuya2mqtt.service
+
+// Start the service immediately
+sudo systemctl start tuya2mqtt.service
+
+// Check the current status of the service
+sudo systemctl status tuya2mqtt.service
+
 ```
 
-## Configuration
-Tuya-mqtt has two different configuration files.  The first is config.json, a simple file which contains settings for connection to the MQTT broker.  The second is devices.conf, a JSON5 formatted file which defines the Tuya devices that the script should connect to and expose via MQTT.  This file uses the same basic format as the "tuya-cli wizard" outputs when used to acquire the device keys, so it can be used as the basis for your tuya2mqtt device configuration.
+## Konfiguration
+tuya2mqtt verwendet zwei verschiedene Konfigurationsdateien.
 
-### Setting up config.json:
+Die erste ist `config.json`, welche die Einstellungen für die Verbindung zum MQTT-Broker enthält.
+
+Die zweite ist `devices.conf`, eine im JSON5-Format geschriebene Datei, die die Tuya-Geräte definiert, mit denen das Skript sich verbinden und die es über MQTT verfügbar machen soll.
+Diese Datei verwendet das gleiche grundlegende Format, das auch vom „tuya-cli wizard“ beim Auslesen der Geräteschlüssel erzeugt wird. Daher kann sie direkt als Grundlage für die tuya2mqtt-Gerätekonfiguration verwendet werden.
+
+### Einrichtung von config.json:
 ```
 cp config.json.sample config.json
 ```
-Edit config.json with your MQTT broker settings and save:
+Bearbeite die `config.json` und trage die Einstellungen deines MQTT-Brokers ein. Speichere die Datei anschließend.
 ```
-nano config.json 
+nano config.json
 ```
 
-### Setting up devices.conf:
-If you use the "tuya-cli wizard" method to acquire your device keys you can leverage the output of this tool as the start of your devices.conf file.  Otherwise, you want to create a file using a formate like this:
-```
+### Einrichtung von devices.conf:
+Wenn du die Methode „tuya-cli wizard“ verwendest, um die Geräteschlüssel zu erhalten, kannst du die Ausgabe dieses Tools als Ausgangspunkt für deine `devices.conf`-Datei nutzen.
+Andernfalls musst du die Datei manuell im folgenden Format erstellen:
+```json
 [
   {
     name: 'Tuya Device 1',
@@ -60,91 +95,141 @@ If you use the "tuya-cli wizard" method to acquire your device keys you can leve
   }
 ]
 ```
-Note that, because the format is JSON5, which is a superset of JSON, you can use standard, strict JSON syntax, or the more forgiving JSON5 format, or even mix and match in the same file.
+Beachte, dass das Format `JSON5` ist – ein Superset von JSON. Das bedeutet, du kannst entweder den strikten JSON-Syntax verwenden, das flexiblere JSON5-Format, oder sogar beides gemischt in derselben Datei.
 
-By default tuya2mqtt will attempt to find the device and automatically detect the Tuya protocol version, however, this only works if the system running tuya2mqtt is on the same network/subnet as the devices being controlled.  If this is not the case, or if automatic detection fails for some other reason, it is possible to specify the IP address and protocol manually by adding the "ip:" property to the devices.conf file.  Note that if the IP address is specified manually it is required to also manually specify the protocol version using the "version:" parameter as either "3.1" or "3.3".  The easiest way to determine the protocol version is to try controlling the device with tuya-cli and try each version to see which one works.
+Standardmäßig versucht tuya2mqtt, das Gerät zu finden und die Tuya-Protokollversion automatisch zu erkennen. Das funktioniert jedoch nur, wenn das System, auf dem tuya2mqtt läuft, im selben Netzwerk/Subnetz wie die zu steuernden Geräte ist.
+Falls dies nicht zutrifft oder die automatische Erkennung aus einem anderen Grund fehlschlägt, ist es möglich, die IP-Adresse und Protokollversion manuell anzugeben, indem du in der devices.conf die Eigenschaft `ip:` hinzufügst.
 
-While the above syntax may be enough to create a working tuya2mqtt install with raw DPS values accessible via DPS topics, the full functionality of tuya2mqtt 3.0 is only unlocked by configuring device types to get.  Please see the full [DEVICES](docs/DEVICES.md) documentation for details.
+Beachte: Wenn die IP-Adresse manuell gesetzt wird, muss auch die Protokollversion manuell über den Parameter `version:` festgelegt werden – entweder "3.4" oder "3.5".
 
-### Starting tuya2mqtt
+Die einfachste Möglichkeit, die richtige Protokollversion herauszufinden, besteht darin, das Gerät mit „tuya-cli“ zu testen und verschiedene Versionen auszuprobieren, um zu sehen, welche funktioniert.
+
+Während die obige Syntax möglicherweise bereits ausreicht, um eine funktionierende tuya2mqtt-Installation mit rohen DPS-Werten bereitzustellen (zugänglich über DPS-Topics), wird der volle Funktionsumfang von tuya2mqtt erst durch die Konfiguration von Gerätetypen entfaltet.
+
+Bitte sieh dir die vollständige [DEVICES](docs/DEVICES.md)-Dokumentation an, um weitere Details zu erhalten.
+
+
+### Direktes starten von tuya2mqtt
+
 ```
 node tuya2mqtt.js
 ```
-To enable debugging output (required when opening an issue):
+Um Debug-Ausgaben zu aktivieren (erforderlich beim Eröffnen eines Issues):
 ```
 DEBUG=tuya2mqtt:* tuya2mqtt.js
 ```
 
-### Updating devices.conf with new and/or changed devices:
-After adding or changing devices to your Tuya account the devices.conf file can be automatically updated with all new devices and name/key changes by using the merge-devices.js script.  Create a file named new-devices.conf with the new "tuya-cli wizard" output then run ```node merge-devices.js```.  A dated backup of the original devices.conf file will be created automatically before changes are made.  Devices are only added and updated, never removed.  The resulting devices.conf file will be neatly formatted and sorted alphabetically by device name.
+### Überblick zur Verwendung
 
-To prevent device entries from being updated by the merge script, add property "allowMerge: false" to the device definition in the devices.conf file.
+Tuya-Geräte funktionieren, indem sie Gerätefunktionen bestimmten Werten zuordnen, die in sogenannten Datenpunkten (DPS-Werten) gespeichert sind. Jeder dieser Werte wird über eine Indexnummer, den sogenannten DPS-Key, referenziert.
 
-### Usage Overview
-Tuya devices work by mapping device functions to various values stored in data points (referred to as DPS values) which are referenced via an index number, referred to as the DPS key.  For example, a simple on/off switch may have a single DPS value, stored in DPS kep 1 (DPS1).  This value is likely to have a setting of true/false representing the on/off state of the device.  The device state can be read via DPS1, and, for values that can be changed (some DPS values are read-only), sending true/false to DPS1 will turn the device on/off.  A simple dimmer might have the same DPS1 value, but an additional DPS2 value from 1-255 representing the state of the dimmer.  More complex devices use more DPS keys with various values representing the states and control functions of the device.
+Beispiel: Ein einfacher Ein-/Aus-Schalter kann einen einzigen DPS-Wert besitzen, z. B. DPS-Key 1 (DPS1). Dieser Wert hat dann typischerweise den Status `true`/`false`, was dem Ein-/Aus-Zustand des Geräts entspricht.
+Der Gerätestatus kann über DPS1 ausgelesen werden, und bei veränderbaren Werten (einige DPS-Werte sind nur lesbar) kann durch das Senden von `true` oder `false` an DPS1 das Gerät ein- bzw. ausgeschaltet werden.
 
-The tuya2mqtt script provides access to these DPS keys and their values via MQTT, allowing any tool that can use MQTT to monitor and control these devices via a local network connection.  In addition to providing access to the raw DPS data, there is also a template engine that allows those DPS values to be mapped to device specific topics, called "friendly topics", allowing for consistent mapping even between devices that use different DPS keys for the same functions.  These friendly topics also support various transforms and other functions that make it easier for other devices to communicate with Tuya devices without a detailed understanding of the data formats Tuya devices use.
+Ein einfacher Dimmer könnte ebenfalls DPS1 für den Schaltzustand verwenden, aber zusätzlich einen weiteren DPS2-Wert, der z. B. von 1–255 reicht und den Dimmwert repräsentiert.
+Komplexere Geräte verwenden weitere DPS-Keys, deren Werte die unterschiedlichen Zustände und Steuerfunktionen des Geräts abbilden.
 
-### MQTT Topic Overview
-The top level topics are created using the device name or ID as the primary identifier.  If the device name is available, it will be converted to lowercase and any spaces replace with underscores('_') characters so, for example, if the device as the name "Kitchen Table", the top level topic would be:
-```
+Das tuya2mqtt-Skript stellt den Zugriff auf diese DPS-Keys und ihre Werte über MQTT zur Verfügung. Damit können alle Tools, die MQTT unterstützen, diese Geräte im lokalen Netzwerk überwachen und steuern.
+
+Neben dem Zugriff auf die rohen DPS-Daten bietet tuya2mqtt auch eine Template-Engine, mit der diese DPS-Werte auf gerätetypische Topics (sogenannte „Friendly Topics“) abgebildet werden können. Dadurch wird eine einheitliche Zuordnung ermöglicht – selbst zwischen Geräten, die unterschiedliche DPS-Keys für die gleiche Funktion verwenden.
+
+Diese „Friendly Topics“ unterstützen außerdem verschiedene Transformationen und Hilfsfunktionen, die die Kommunikation mit Tuya-Geräten erheblich vereinfachen – auch ohne tiefes Verständnis der internen Tuya-Datenformate.
+
+### Überblick über MQTT-Themen (Topics)
+
+Die oberste Topic-Ebene wird anhand des Gerätenamens oder der Geräte-ID erstellt.
+Wenn ein Gerätename verfügbar ist, wird dieser in Kleinbuchstaben umgewandelt und Leerzeichen durch Unterstriche (_) ersetzt.
+Beispiel: Hat das Gerät den Namen „Kitchen Table“, lautet das Top-Level-Topic:
+
+```bash
 tuya/kitchen_table/
 ```
-If the device name was not available in the devices.conf file, tuya2mqtt falls back to using the device ID for the top level topic:
-```
+Wenn kein Gerätename in der devices.conf vorhanden ist, verwendet tuya2mqtt stattdessen die Geräte-ID:
+```swift
 tuya/86435357d8b123456789/
 ```
-All additional state/command topics are then built below this level. You can view the connectivity status of the device using the status topic, which reports online/offline based on whether tuya2mqtt has an active connection to the device or not.  The script monitors both the device socket connection for errors and also device heartbeats, to report proper status. 
-```
+Alle weiteren Status- und Befehls-Topics werden hierarchisch unterhalb dieser Ebene aufgebaut.
+Der Status des Geräts (ob online oder offline) kann über das folgende Topic abgefragt werden:
+```bash
 tuya/kitchen_table/state --> online/offline
 ```
-You can also trigger the device to send an immediate update of all known device DPS topics by sending the message "get-states" to the command topic (this topic exist for all devices):
-```
+Das Skript überwacht dazu sowohl die Socket-Verbindung als auch die Heartbeats des Geräts, um den aktuellen Status korrekt zu melden. Du kannst das Gerät dazu bringen, sofort alle bekannten DPS-Werte zu senden, indem du die Nachricht `get-states` an das Command-Topic sendest:
+```swift
 tuya/kitchen_table/command <-- get-states
 ```
-As noted above, tuya2mqtt supports two distinct topic types for interfacing with and controlling devices. For all devices, the DPS topics are always published and commands are accepted, however, friendly topics are the generally recommended approach but require you to use a pre-defined device template or create a customer template for your device when using the generic device.
+Wie bereits erwähnt, unterstützt tuya2mqtt zwei Arten von MQTT-Topics zur Steuerung und Überwachung von Geräten:
 
-If you do create a template for your device, please feel free to share it with the community as adding additional pre-defined devices is desired for future versions of tuya2mqtt.  There is a templates section of the project that you can submit a PR for your templates.
+- DPS-Topics → immer verfügbar
+- „Friendly Topics“ → empfohlen, erfordern aber ein passendes Gerätetemplate
 
-If you would like to use the raw DPS topics, please jump to the [DPS topics](#dps-topics) section of this document.
+Die „Friendly Topics“ sind in der Regel die bessere Wahl, da sie eine einheitliche Struktur für verschiedene Geräte ermöglichen – selbst wenn die DPS-Keys unterschiedlich sind.
+Damit das funktioniert, musst du entweder ein vordefiniertes Gerätetemplate verwenden oder für dein Gerät ein eigenes Template erstellen (bei generischen Geräten).
+
+Wenn du ein Template für dein Gerät erstellst, teile es gern mit der Community!
+Neue, vordefinierte Templates werden für zukünftige Versionen von tuya2mqtt ausdrücklich gewünscht.
+Einfach per Pull Request dein Template einreichen kannst.
 
 ## Friendly Topics
-Friendly topics are only available when using a pre-defined device template or, for the generic device, when you have defined a custom template for your device.  Friendly topics use the tuya2mqtt templating engine to map raw Tuya DPS key values to easy to consume topics and transform the data where needed.
 
-Another advantage of friendly topics is that not all devices respond to schema requests (i.e. a request to report all DPS topics the device uses).  Because of this, it's not always possible for tuya2mqtt to know which DPS topics to acquire state information from during initial startup.  With a defined template the required DPS keys for each friendly topic are configured and tuya2mqtt will always query these DPS key values during initial connection to the device and report their state appropriately.
+Friendly Topics sind nur verfügbar, wenn du ein vordefiniertes Gerätetemplate verwendest oder – im Fall des generischen Geräts – ein benutzerdefiniertes Template für dein Gerät definiert hast.
+Friendly Topics nutzen die tuya2mqtt Template-Engine, um Tuya DPS-Key-Werte auf einfach zu nutzende Topics abzubilden und die Daten bei Bedarf zu transformieren.
 
-For more details on using friendly topics, please read the [DEVICES](docs/DEVICES.md) documentation which discusses how to configure supported devices or define a custom template.
+Ein weiterer Vorteil der Friendly Topics ist, dass nicht alle Geräte auf Schema-Anfragen reagieren (also Anfragen, die alle vom Gerät genutzten DPS-Topics melden).
+Daher ist es nicht immer möglich, dass tuya2mqtt beim Start weiß, von welchen DPS-Topics es Statusinformationen abfragen soll.
+Mit einem definierten Template sind die benötigten DPS-Keys für jedes Friendly Topic festgelegt, und tuya2mqtt fragt diese DPS-Keys beim initialen Verbindungsaufbau zum Gerät immer ab und meldet deren Status korrekt.
+
+Für weitere Details zur Nutzung von Friendly Topics lies bitte die Dokumentation unter [DEVICES](docs/DEVICES.md), die beschreibt, wie unterstützte Geräte konfiguriert oder eigene Templates definiert werden können.
 
 ## DPS Topics
-Controlling devices directly via DPS topics requires enough knowledge of the device to know which topics accept what values.  Described below are two different methods for interfacing with DPS values, the JSON DPS topic, and the individual DPS key topics.
+
+Das direkte Steuern von Geräten über DPS-Topics erfordert ausreichend Kenntnisse über das Gerät, um zu wissen, welche Topics welche Werte akzeptieren. Im Folgenden werden zwei verschiedene Methoden beschrieben, um mit DPS-Werten zu interagieren: das JSON-DPS-Topic und die einzelnen DPS-Key-Topics.
 
 ### DPS JSON topic
-The JSON DPS topic allows controlling Tuya devices by sending Tuya native style JSON messages to the command topic, and by monitoring for Tuya style JSON replies on the state topic.  You can get more details on this format by reading the [TuyAPI documentation](https://codetheweb.github.io/tuyapi/index.html), but, for example, to turn off a dimmer switch you could issue a MQTT message containing the JSON value ```{dps: 1, set: false}``` to the DPS/command topic for the device.  If you wanted to turn the dimmer on, and set brightness to 50%, you could issue separate messages ```{dps: 1, set: true}``` and then ```{dps: 2, set: 128}```, or, the Tuya JSON protocol also allows setting multiple values in a single set command using the format ```{'multiple': true, 'data': {'1': true, '2': 128}}```.  JSON state and commands should use the DPS/state and DPS/command topics respectively.  Below is an example of the topics:
-```
+
+Das JSON-DPS-Topic ermöglicht die Steuerung von Tuya-Geräten, indem man Tuya-native JSON-Nachrichten an das Command-Topic sendet und Tuya-JSON-Antworten im State-Topic überwacht.
+
+Weitere Details zu diesem Format findest du in der [TuyAPI documentation](https://codetheweb.github.io/tuyapi/index.html).
+
+Zum Beispiel könntest du einen Dimmschalter ausschalten, indem du eine MQTT-Nachricht mit dem JSON-Wert  
+```{dps: 1, set: false}``` an das DPS/command-Topic des Geräts sendest.
+
+Um den Dimmer einzuschalten und die Helligkeit auf 50% zu setzen, könntest du zwei separate Nachrichten senden:  
+```{dps: 1, set: true}``` und danach ```{dps: 2, set: 128}```
+
+Alternativ erlaubt das Tuya-JSON-Protokoll auch das Setzen mehrerer Werte in einem einzigen Befehl mit folgendem Format:  
+```{'multiple': true, 'data': {'1': true, '2': 128}}```
+
+JSON-Zustands- und Kommando-Nachrichten sollten jeweils über die Topics DPS/state und DPS/command laufen.
+
+Unten ist ein Beispiel für die Topics:
+```swift
 tuya/dimmer_device/DPS/state
 tuya/dimmer_device/DPS/command
 ```
+
 ### DPS Key topics
-In addition to the JSON DPS topic, it's also possible to use the DPS key topics.  DPS key topics allow you to monitor and send simple bool/number/string values directly to DPS keys without having to use the Tuya JSON format, the conversion to Tuya JSON is handled by tuya2mqtt.  Using the example from above, turning on the dimmer and setting brightness to 50% you would simply issue the message "true" to DPS/1/command and the message "128" to DPS/2/command.
-```
+
+Zusätzlich zum JSON-DPS-Topic ist es auch möglich, die DPS-Key-Topics zu verwenden. DPS-Key-Topics erlauben es dir, einfache boolesche Werte, Zahlen oder Strings direkt an die DPS-Keys zu senden oder von ihnen zu empfangen, ohne das Tuya-JSON-Format selbst verwenden zu müssen. Die Umwandlung in Tuya-JSON übernimmt tuya2mqtt automatisch.
+
+Am Beispiel von oben: Um den Dimmer einzuschalten und die Helligkeit auf 50 % zu setzen, würdest du einfach die Nachricht `true` an DPS/1/command und die Nachricht `128` an DPS/2/command senden.
+
+```swift
 tuya/dimmer_device/DPS/1/state    --> true/false for on/off state
 tuya/dimmer_device/DPS/2/command  <-- 1-255 for brightness state
 tuya/dimmer_device/DPS/1/state    --> accept true/false for turning device on/off
 tuya/dimmer_device/DPS/2/command  <-- accepts 1-255 for controlling brightness level
 ```
-**!!! Important Note !!!**
-When sending commands directly to DPS values there are no limitation on what values are sent as tuya2mqtt has no way to know what are valid vs invalid for any given DPS key.  Sending values that are out-of-range or of different types than the DPS key expects can cause unpredictable behavior of your device, from causing timeouts, to reboots, to hanging the device.  While I've never seen a device fail to recover after a restart, please keep this in mind when sending commands to your device.
+**!!! Wichtiger Hinweis !!!**
+Beim direkten Senden von Befehlen an DPS-Werte gibt es keine Einschränkungen, welche Werte gesendet werden, da tuya2mqtt nicht wissen kann, welche Werte für einen bestimmten DPS-Key gültig oder ungültig sind. Das Senden von Werten, die außerhalb des zulässigen Bereichs liegen oder vom falschen Typ sind, kann unvorhersehbares Verhalten des Geräts verursachen – von Timeouts über Neustarts bis hin zum Einfrieren des Geräts.
+Auch wenn ich bisher noch nie erlebt habe, dass ein Gerät nach einem Neustart nicht wieder funktioniert hat, solltest du dies beim Senden von Befehlen an dein Gerät unbedingt beachten.
 
-## Issues
-Not all Tuya protocols are supported.  For example, some devices use protocol 3.2 which currently remains unsupported by the TuyAPI project due to lack of enough information to reverse engineer the protocol.  If you are unable to control your devices with tuya2mqtt please verify that you can query and control them with tuya-cli first.  If tuya-cli works, then this script should also work, if it doesn't then this script will not work either.
+## Probleme
+Nicht alle Tuya-Protokolle werden unterstützt. Beispielsweise verwenden einige Geräte das Protokoll 3.2, das derzeit vom TuyAPI-Projekt nicht unterstützt wird, da nicht genügend Informationen vorliegen, um das Protokoll zu reverse-engineeren.
+
+Wenn du deine Geräte mit tuya2mqtt nicht steuern kannst, überprüfe bitte zunächst, ob du sie mit tuya-cli abfragen und steuern kannst. Wenn tuya-cli funktioniert, sollte auch dieses Skript funktionieren. Wenn tuya-cli nicht funktioniert, wird dieses Skript ebenfalls nicht funktionieren.
 
 ## Contributors
 - [TheAgentK](https://github.com/TheAgentK)
-- [tsightler](https://github.com/tsightler)
-- [Tycale](https://github.com/Tycale)
-- [crashdummymch](https://github.com/crashdummymch)
-- [GadgetAngel](https://github.com/GadgetAngel)
-- [dkrahmer](https://github.com/dkrahmer)
 
 ## Related Projects:
 - https://github.com/codetheweb/tuyapi

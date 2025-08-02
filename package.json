@@ -1,6 +1,6 @@
 {
   "name": "tuya2mqtt",
-  "version": "4.0.1",
+  "version": "1.2.0",
   "description": "Control Tuya devices locally via MQTT",
   "homepage": "https://github.com/Wilkware/tuya2mqtt#readme",
   "main": "tuya2mqtt.js",
@@ -11,7 +11,7 @@
     "name": "Wilkware",
     "email": "heiko.wilknitz@wilkware.de"
   },
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@tuyapi/cli": "^1.15.0",
     "color-convert": "^2.0.1",

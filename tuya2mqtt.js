@@ -9,6 +9,7 @@ const SimpleSwitch = require('./devices/simple-switch')
 const SimpleDimmer = require('./devices/simple-dimmer')
 const RGBTWLight = require('./devices/rgbtw-light')
 const VacuumCleaner = require('./devices/vacuum-cleaner')
+const CeilingFan = require('./devices/ceiling-fan')
 const GenericDevice = require('./devices/generic-device')
 const utils = require('./lib/utils')
 
@@ -50,6 +51,9 @@ function getDevice(configDevice, mqttClient) {
             break;
         case 'VacuumCleaner':
             return new VacuumCleaner(deviceInfo)
+            break;
+        case 'CeilingFan':
+            return new CeilingFan(deviceInfo)
             break;
     }
     return new GenericDevice(deviceInfo)

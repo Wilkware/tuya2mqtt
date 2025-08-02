@@ -1,0 +1,17 @@
+[Unit]
+Description=tuya2mqtt
+[Service]
+ExecStart=/opt/tuya2mqtt/tuya2mqtt.js
+Restart=always
+User=pi
+Group=pi
+Environment=PATH=/usr/bin:/usr/local/bin
+Environment=NODE_ENV=production
+Environment=DEBUG=tuya2mqtt:*
+WorkingDirectory=/opt/tuya2mqtt
+# Output to syslog
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=t2m
+[Install]
+WantedBy=multi-user.target

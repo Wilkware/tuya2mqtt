@@ -1,0 +1,24 @@
+[
+  {
+    name: 'Robby',
+    id: 'abcdefghij1234567890',
+    key: 'abcdefghij',
+    version: '3.4',
+    ip: '192.168.178.90',
+    type: 'VacuumCleaner',
+    issueRefreshOnConnect: true,
+    issueRefreshOnPing: false,
+    issueGenericDpsTopics: false,
+  },
+  {
+    name: 'Windy',
+    id: 'klmnopqrst1234567890',
+    key: 'klmnopqrst',
+    version: '3.5',
+    ip: '192.168.178.91',
+    type: 'CeilingFan',
+    issueRefreshOnConnect: true,
+    issueRefreshOnPing: false,
+    issueGenericDpsTopics: false,
+  }
+]
