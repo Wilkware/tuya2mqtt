@@ -6,14 +6,17 @@
 [![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg?style=flat-square)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=8816166)
 
 # !!!! Important Note !!!!
+
 This repository is actually a fork of TheAgentk tuya-mqtt repro (https://github.com/TheAgentK/tuya-mqtt.git).
 But since I have changed a lot, renamed it to tuya2mqtt and wanted to use it as a private repository, there was no other way.
 
 # !!!! Wichtiger Hinweis !!!!
+
 Dieses Repository ist ein Fork des tuya-mqtt-Repos von TheAgentK (https://github.com/TheAgentK/tuya-mqtt.git).
 Da ich jedoch sehr viele Änderungen vorgenommen habe, es in tuya2mqtt umbenannt und als privates Repository nutzen wollte, gab es keinen anderen Weg.
 
 ## Über das Projekt
+
 Dieses Projekt ist eine Brücke, die es ermöglicht, IoT-Geräte des Herstellers Tuya Inc. – die unter vielen verschiedenen Markennamen verkauft werden – lokal über einfache MQTT-Topics zu steuern. Es übersetzt effektiv das Tuya-Protokoll in leicht verständliche MQTT-Themen.
 
 Die Nutzung dieses Skripts erfordert, dass für jedes Gerät die Device-ID und der lokale Schlüssel (local key) beschafft wird, nachdem die Geräte über die Tuya/Smart Life-App oder eine andere kompatible Tuya-App eingerichtet wurden. Mit diesen Informationen ist es möglich, lokal mit Tuya-Geräten zu kommunizieren – ganz ohne die Tuya-Cloud.
@@ -23,11 +26,13 @@ Anleitungen zum Ermitteln der Gerätedaten findest du im TuyAPI-Projekt, auf dem
 👉 [TuyAPI GitHub Site](https://github.com/codetheweb/tuyapi/blob/master/docs/SETUP.md).
 
 **Das Beschaffen von Geräteschlüsseln gehört nicht zum Umfang dieses Projekts!**
+
 Fehlermeldungen zu diesem Thema werden wahrscheinlich ohne Kommentar geschlossen.
 Bitte prüfe vor dem Eröffnen eines Issues, ob dein Gerät sich mit tuya-cli auslesen und steuern lässt.
 Falls tuya-cli dein Gerät nicht steuern kann, wird es auch mit diesem Projekt nicht funktionieren.
 
 ## Installation
+
 Lade dieses Projekt auf dein System herunter – in ein beliebiges Verzeichnis (im folgenden Beispiel wird /opt/tuya2mqtt verwendet) – und installiere TuyAPI im selben Ordner, in dem sich auch die Datei tuya2mqtt.js befindet.
 
 ```
@@ -62,6 +67,7 @@ sudo systemctl status tuya2mqtt.service
 ```
 
 ## Konfiguration
+
 tuya2mqtt verwendet zwei verschiedene Konfigurationsdateien.
 
 Die erste ist `config.json`, welche die Einstellungen für die Verbindung zum MQTT-Broker enthält.
@@ -70,6 +76,7 @@ Die zweite ist `devices.conf`, eine im JSON5-Format geschriebene Datei, die die 
 Diese Datei verwendet das gleiche grundlegende Format, das auch vom „tuya-cli wizard“ beim Auslesen der Geräteschlüssel erzeugt wird. Daher kann sie direkt als Grundlage für die tuya2mqtt-Gerätekonfiguration verwendet werden.
 
 ### Einrichtung von config.json:
+
 ```
 cp config.json.sample config.json
 ```
@@ -79,8 +86,10 @@ nano config.json
 ```
 
 ### Einrichtung von devices.conf:
+
 Wenn du die Methode „tuya-cli wizard“ verwendest, um die Geräteschlüssel zu erhalten, kannst du die Ausgabe dieses Tools als Ausgangspunkt für deine `devices.conf`-Datei nutzen.
 Andernfalls musst du die Datei manuell im folgenden Format erstellen:
+
 ```json
 [
   {
@@ -95,6 +104,7 @@ Andernfalls musst du die Datei manuell im folgenden Format erstellen:
   }
 ]
 ```
+
 Beachte, dass das Format `JSON5` ist – ein Superset von JSON. Das bedeutet, du kannst entweder den strikten JSON-Syntax verwenden, das flexiblere JSON5-Format, oder sogar beides gemischt in derselben Datei.
 
 Standardmäßig versucht tuya2mqtt, das Gerät zu finden und die Tuya-Protokollversion automatisch zu erkennen. Das funktioniert jedoch nur, wenn das System, auf dem tuya2mqtt läuft, im selben Netzwerk/Subnetz wie die zu steuernden Geräte ist.
@@ -219,19 +229,23 @@ tuya/dimmer_device/DPS/2/command  <-- 1-255 for brightness state
 tuya/dimmer_device/DPS/1/state    --> accept true/false for turning device on/off
 tuya/dimmer_device/DPS/2/command  <-- accepts 1-255 for controlling brightness level
 ```
-**!!! Wichtiger Hinweis !!!**
+**Wichtiger Hinweis**
+
 Beim direkten Senden von Befehlen an DPS-Werte gibt es keine Einschränkungen, welche Werte gesendet werden, da tuya2mqtt nicht wissen kann, welche Werte für einen bestimmten DPS-Key gültig oder ungültig sind. Das Senden von Werten, die außerhalb des zulässigen Bereichs liegen oder vom falschen Typ sind, kann unvorhersehbares Verhalten des Geräts verursachen – von Timeouts über Neustarts bis hin zum Einfrieren des Geräts.
 Auch wenn ich bisher noch nie erlebt habe, dass ein Gerät nach einem Neustart nicht wieder funktioniert hat, solltest du dies beim Senden von Befehlen an dein Gerät unbedingt beachten.
 
-## Probleme
+**Probleme**
+
 Nicht alle Tuya-Protokolle werden unterstützt. Beispielsweise verwenden einige Geräte das Protokoll 3.2, das derzeit vom TuyAPI-Projekt nicht unterstützt wird, da nicht genügend Informationen vorliegen, um das Protokoll zu reverse-engineeren.
 
 Wenn du deine Geräte mit tuya2mqtt nicht steuern kannst, überprüfe bitte zunächst, ob du sie mit tuya-cli abfragen und steuern kannst. Wenn tuya-cli funktioniert, sollte auch dieses Skript funktionieren. Wenn tuya-cli nicht funktioniert, wird dieses Skript ebenfalls nicht funktionieren.
 
 ## Contributors
+
 - [TheAgentK](https://github.com/TheAgentK)
 
 ## Related Projects:
+
 - https://github.com/codetheweb/tuyapi
 - https://github.com/unparagoned/njsTuya
 - https://github.com/clach04/python-tuya
