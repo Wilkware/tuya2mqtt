@@ -49,7 +49,7 @@ cd tuya2mqtt
 npm install
 
 // installs this project as system service
-sudo cp ./doc/tuya2mqtt.service /etc/systemd/system
+sudo cp ./docs/tuya2mqtt.service /etc/systemd/system
 
 // Reload systemd to recognize new or changed unit files
 sudo systemctl daemon-reexec
