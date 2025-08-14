@@ -71,7 +71,7 @@ Gerät mit Ein/Aus und Helligkeit (z. B. Dimmer).
 **Manuelle Konfigurationsoptionen:**
 
 | Option           | Beschreibung                   | Standard |
-|------------------|--------------------------- ----|----------|
+|------------------|--------------------------------|----------|
 | dpsPower         | DPS-Schlüssel für Strom        | 1        |
 | dpsBrightness    | DPS-Schlüssel für Helligkeit   | 2        |
 | brightnessScale  | Skalierung für Helligkeit      | 255      |
