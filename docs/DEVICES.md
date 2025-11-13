@@ -15,7 +15,8 @@ Diese Topics ermöglichen eine einfache Kommunikation mit dem Gerät in standard
 | [SimpleDimmer](#SimpleDimmer)   | Unterstützt Geräte mit Ein/Aus und Helligkeit                  |
 | [RGBTWLight](#RGBTWLight)       | Unterstützt Farb-/Weißlicht mit optionaler Farbtemperatur      |
 | [CeilingFan](#CeilingFan)       | Unterstützt Deckenventilator inkl. Licht und Geschwindigkeit   |
-| [VacuumCleaner](#VacuumCleaner) | Unterstützt einfache Saugroboter                               |
+| [VacuumCleaner](#VacuumCleaner) | Unterstützt Saugroboter                                        |
+| [Dehumidifier](#Dehumidifier)   | Unterstützt Luftentfeuchter                                    |
 | [GenericDevice](#VacuumCleaner) | Benutzerdefiniertes Template für beliebige Geräte              |
 
 Um ein Gerätetemplate zu verwenden, füge einfach die Option "type" in der Datei `devices.conf` hinzu, zum Beispiel so:
@@ -161,11 +162,11 @@ Ein Deckenventilator inkl. Licht, Geschwindigkeit und Ein/Aus-Funktion.
 | Topic                    | Beschreibung                      | Wertebereich                                   |
 | ------------------------ | --------------------------------- | ---------------------------------------------- |
 | light\_state             | Schaltzustand Licht               | true / false                                   |
-| light\_command           | Schaltet Licht ein/aus            | on/off, 0/1, true/false                   |
+| light\_command           | Schaltet Licht ein/aus            | on/off, 0/1, true/false                        |
 | color\_temp\_state       | Aktuelle Farbtemperatur           | 0, 500 oder 1000                               |
 | color\_temp\_command     | Setzt Farbtemperatur              | 0, 500 oder 1000                               |
 | fan\_state               | Schaltzustand Lüfter              | true / false                                   |
-| fan\_command             | Schaltet Lüfter ein/aus           | on/off, 0/1, true/false                   |
+| fan\_command             | Schaltet Lüfter ein/aus           | on/off, 0/1, true/false                        |
 | speed\_state             | Aktuelle Lüftergeschwindigkeit    | 1–6                                            |
 | speed\_command           | Setzt Lüftergeschwindigkeit       | 1–6                                            |
 | direction\_state         | Aktuelle Lüfter-Richtung          | 'Forward' oder 'Reverse'                       |
@@ -173,7 +174,7 @@ Ein Deckenventilator inkl. Licht, Geschwindigkeit und Ein/Aus-Funktion.
 | countdown\_left\_state   | Verbleibende Countdown-Zeit (Min) | 0–540                                          |
 | countdown\_left\_command | Setzt Countdown-Zeit              | 0–540                                          |
 | beep\_state              | Status Signalton                  | true / false                                   |
-| beep\_command            | Signalton ein/aus                 | on/off, 0/1, true/false                   |
+| beep\_command            | Signalton ein/aus                 | on/off, 0/1, true/false                        |
 
 **Manuelle Konfigurationsoptionen:**
 
@@ -233,6 +234,38 @@ Steuerung von Saugrobotern
 | dpsVolumn    | DPS für Lautstärkeeinstellung                 | 28                                |
 | dpsLang      | DPS für Spracheinstellung                     | 29                                |
 | dpsSpeed     | DPS für Reinigungsgeschwindigkeit             | 101                               |
+
+### Dehumidifier
+
+Steuerung von Luftentfeuchtern
+
+| Topic                       | Beschreibung                       | Wertebereich                       |
+| --------------------------- | ---------------------------------- | ---------------------------------- |
+| power\_state                | Schaltzustand des Geräts           | true / false                       |
+| power\_command              | Schaltet das Gerät ein/aus         | true / false                       |
+| dehumidify\_set\_enum\_state     | Aktueller Entfeuchtungsgard   | '30','35','40','45','50','55','60','65','70','75','80','85','90' |
+| dehumidify\_set\_enum\_command   | Setzt Entfeuchtungsgard       | '30','35','40','45','50','55','60','65','70','75','80','85','90' |
+| fan\_speed\_enum\_state     | Aktuelle Lüftergeschwindigkeit     | 'low', 'high'                      |
+| fan\_speed\_enum\_command   | Setzt Lüftergeschwindigkeit        | 'low', 'high'                      |
+| humidity\_left\_state       | Luftfeuchte in %                   | 30–90                              |
+| temp\_indoor\_state         | Temperatur in °C                   | 0–50                               |
+| countdown\_set\_state       | Verbleibende Countdown-Zeit        | 'cancel','1h','2h','3h','4h','5h','6h','7h','8h','9h','10h','11h','12h','13h','14h','15h','16h','17h','18h','19h','20h','21h','22h','23h','24h' |
+| countdown\_set\_command     | Setzt Countdown-Zeit           | 'cancel','1h','2h','3h','4h','5h','6h','7h','8h','9h','10h','11h','12h','13h','14h','15h','16h','17h','18h','19h','20h','21h','22h','23h','24h' |
+| tank\_full\_state           | Füllstatus Tank voll/nicht voll    | true / false                       |
+| defrost\_status\_state      | Auftaustatus ein/aus               | true / false                       |
+
+**Manuelle Konfigurationsoptionen:**
+
+| Option       | Beschreibung                                   | Standard (automatische Erkennung) |
+| ------------ | ---------------------------------------------- | --------------------------------- |
+| dpsPower     | DPS für Schaltzustand                          | 1                                 |
+| dpsDehumidify| DPS für Entfeuchtungsgard                      | 3                                 |
+| dpsSpeed     | DPS für Lüftergeschwindigkeit                  | 4                                 |
+| dpsHumidity  | DPS für Feuchtigkeit im Innenraum (nur lesend) | 6                                 |
+| dpsTemp      | DPS für Temperatur im Innenraum (nur lesend)   | 7                                 |
+| dpsCountdown | DPS für Countdown-Timer                        | 17                                |
+| dpsTank      | DPS für Zustand Tank (nur lesend)              | 102                               |
+| dpsDefrost   | DPS für Zustand Auftauen (nur lesend)          | 102                               |
 
 ### GenericDevice (Generische Gerätetemplates)
 

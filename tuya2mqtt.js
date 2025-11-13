@@ -2,16 +2,17 @@
 const fs = require('fs')
 const mqtt = require('mqtt')
 const json5 = require('json5')
+const utils = require('./lib/utils')
 const debugInfo = require('debug')('tuya2mqtt:info')
 const debugCommand = require('debug')('tuya2mqtt:command')
 const debugError = require('debug')('tuya2mqtt:error')
+const GenericDevice = require('./devices/generic-device')
+const RGBTWLight = require('./devices/rgbtw-light')
 const SimpleSwitch = require('./devices/simple-switch')
 const SimpleDimmer = require('./devices/simple-dimmer')
-const RGBTWLight = require('./devices/rgbtw-light')
-const VacuumCleaner = require('./devices/vacuum-cleaner')
 const CeilingFan = require('./devices/ceiling-fan')
-const GenericDevice = require('./devices/generic-device')
-const utils = require('./lib/utils')
+const VacuumCleaner = require('./devices/vacuum-cleaner')
+const Dehumidifier = require('./devices/dehumidifier')
 
 var CONFIG = undefined
 var tuyaDevices = new Array()
@@ -54,6 +55,9 @@ function getDevice(configDevice, mqttClient) {
             break;
         case 'CeilingFan':
             return new CeilingFan(deviceInfo)
+            break;
+        case 'Dehumidifier':
+            return new Dehumidifier(deviceInfo)
             break;
     }
     return new GenericDevice(deviceInfo)

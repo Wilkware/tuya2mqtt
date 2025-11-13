@@ -1,7 +1,7 @@
 # tuya2mqtt
 
 [![NodeJs](https://img.shields.io/badge/Node.js-339933?logo=node.js&logoColor=white&style=flat-square)](https://nodejs.org)
-[![Version](https://img.shields.io/badge/Version-1.2.0-orange.svg?style=flat-square)](https://github.com/Wilkware/tuya2mqtt)
+[![Version](https://img.shields.io/badge/Version-1.3.0-orange.svg?style=flat-square)](https://github.com/Wilkware/tuya2mqtt)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg?style=flat-square)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=8816166)
 
