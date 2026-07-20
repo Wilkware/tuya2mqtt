@@ -1,7 +1,7 @@
 # tuya2mqtt
 
 [![NodeJs](https://img.shields.io/badge/Node.js-339933?logo=node.js&logoColor=white&style=flat-square)](https://nodejs.org)
-[![Version](https://img.shields.io/badge/Version-1.3.0-orange.svg?style=flat-square)](https://github.com/Wilkware/tuya2mqtt)
+[![Version](https://img.shields.io/badge/Version-1.4.0-orange.svg?style=flat-square)](https://github.com/Wilkware/tuya2mqtt)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg?style=flat-square)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=8816166)
 
@@ -239,6 +239,126 @@ Auch wenn ich bisher noch nie erlebt habe, dass ein Gerät nach einem Neustart n
 Nicht alle Tuya-Protokolle werden unterstützt. Beispielsweise verwenden einige Geräte das Protokoll 3.2, das derzeit vom TuyAPI-Projekt nicht unterstützt wird, da nicht genügend Informationen vorliegen, um das Protokoll zu reverse-engineeren.
 
 Wenn du deine Geräte mit tuya2mqtt nicht steuern kannst, überprüfe bitte zunächst, ob du sie mit tuya-cli abfragen und steuern kannst. Wenn tuya-cli funktioniert, sollte auch dieses Skript funktionieren. Wenn tuya-cli nicht funktioniert, wird dieses Skript ebenfalls nicht funktionieren.
+
+## Docker
+
+Die Anwendung kann alternativ zu einer direkten Node.js-Installation auch als Docker-Container betrieben werden.
+
+### Voraussetzungen
+
+* Installiertes Docker
+* Optional: Portainer zur Verwaltung des Containers
+* Eine vorhandene Konfiguration (`config.json` und `devices.conf`)
+
+### Docker Image bauen
+
+Im Projektverzeichnis mit der `Dockerfile` ausführen:
+
+```bash
+docker build -t tuya2mqtt:latest .
+```
+
+Optional kann eine feste Version vergeben werden:
+
+```bash
+docker build -t tuya2mqtt:1.4.0 .
+```
+
+### Konfiguration
+
+Sensible Konfigurationsdateien werden **nicht** in das Docker-Image eingebaut.
+
+Folgende Dateien müssen beim Start als Volume eingebunden werden:
+
+* `config.json`
+* `devices.conf`
+
+Beispielstruktur auf dem Host:
+
+```
+/opt/services/tuya2mqtt/
+├── config.json
+└── devices.conf
+```
+
+### Container starten
+
+Beispiel:
+
+```bash
+docker run -d \
+  --name tuya2mqtt \
+  --restart unless-stopped \
+  -v /opt/services/tuya2mqtt/config.json:/app/config.json:ro \
+  -v /opt/services/tuya2mqtt/devices.conf:/app/devices.conf:ro \
+  tuya2mqtt:1.4.0
+```
+
+Die Konfigurationsdateien werden dabei nur lesbar (`:ro`) in den Container eingebunden.
+
+### Logs anzeigen
+
+Die Container-Ausgabe kann mit folgendem Befehl angezeigt werden:
+
+```bash
+docker logs -f tuya2mqtt
+```
+
+Für detaillierte Debug-Ausgaben kann die Anwendung mit der Umgebungsvariable `DEBUG` gestartet werden:
+
+```bash
+docker run -d \
+  --name tuya2mqtt \
+  --restart unless-stopped \
+  -e DEBUG="tuyapi*,tuya2mqtt*" \
+  -v /opt/services/tuya2mqtt/config.json:/app/config.json:ro \
+  -v /opt/services/tuya2mqtt/devices.conf:/app/devices.conf:ro \
+  tuya2mqtt:1.4.0
+```
+
+### Portainer / Docker Compose
+
+Beispiel für einen Portainer Stack:
+
+```yaml
+services:
+  tuya2mqtt:
+    image: tuya2mqtt:1.4.0
+    container_name: tuya2mqtt
+    restart: unless-stopped
+
+    volumes:
+      - /opt/services/tuya2mqtt/config.json:/app/config.json:ro
+      - /opt/services/tuya2mqtt/devices.conf:/app/devices.conf:ro
+```
+
+Nach Änderungen am Image:
+
+```bash
+docker build -t tuya2mqtt:1.4.1 .
+```
+
+Anschließend den Container bzw. Stack neu deployen.
+
+### Hinweis zu MQTT
+
+Beim Betrieb in Docker darf der MQTT-Server nicht mit `localhost` angesprochen werden, sofern der MQTT-Broker außerhalb des Containers läuft.
+
+Beispiel:
+
+```
+localhost:1883
+```
+
+funktioniert nur bei direktem Start auf dem Host.
+
+Im Docker-Betrieb muss die erreichbare Adresse des MQTT-Brokers verwendet werden, z. B.:
+
+```
+192.168.1.10:1883
+```
+
+oder der Containername eines MQTT-Brokers im gleichen Docker-Netzwerk.
 
 ## Contributors
 
