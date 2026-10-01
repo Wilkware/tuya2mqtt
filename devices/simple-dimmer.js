@@ -1,6 +1,4 @@
 const TuyaDevice = require('./tuya-device')
-const debug = require('debug')('tuya2mqtt:device')
-const utils = require('../lib/utils')
 
 class SimpleDimmer extends TuyaDevice {
     async init() {
@@ -8,8 +6,6 @@ class SimpleDimmer extends TuyaDevice {
         this.config.dpsPower = this.config.dpsPower ? this.config.dpsPower : 1
         this.config.dpsBrightness = this.config.dpsBrightness ? this.config.dpsBrightness : 2
         this.config.brightnessScale = this.config.brightnessScale ? this.config.brightnessScale : 255
-
-        this.deviceData.mdl = 'Dimmer Switch'
 
         // Set white value transform math
         let brightnessStateMath

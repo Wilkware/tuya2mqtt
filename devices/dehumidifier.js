@@ -1,6 +1,4 @@
 const TuyaDevice = require('./tuya-device')
-const debug = require('debug')('tuya2mqtt:device')
-const utils = require('../lib/utils')
 
 class Dehumidifier extends TuyaDevice {
     async init() {
@@ -13,14 +11,6 @@ class Dehumidifier extends TuyaDevice {
         this.config.dpsCountdown = this.config.dpsCountdown ? this.config.dpsCountdown : 17
         this.config.dpsTank = this.config.dpsTank ? this.config.dpsTank : 101 // Report only
         this.config.dpsDefrost = this.config.dpsDefrost ? this.config.dpsDefrost : 102 // Report only
- 
-        this.config.humidityScale = this.config.humidityScale ? this.config.humidityScale : 0
-        this.config.humidityStep = this.config.humidityStep ? this.config.humidityStep : 1
-
-        this.config.tempScale = this.config.tempScale ? this.config.tempScale : 0
-        this.config.tempStep = this.config.tempStep ? this.config.tempStep : 1
-
-        this.deviceData.mdl = 'Dehumidifier'
 
         // Map generic DPS topics to device specific topic names
         this.deviceTopics = {

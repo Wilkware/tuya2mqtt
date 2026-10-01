@@ -6,47 +6,32 @@ const debugState = require('debug')('tuya2mqtt:state')
 const debugCommand = require('debug')('tuya2mqtt:command')
 const debugError = require('debug')('tuya2mqtt:error')
 
+// Seconds to wait for a connection (incl. 3.4/3.5 session key negotiation)
+const CONNECT_TIMEOUT = 20
+
 class TuyaDevice {
     constructor(deviceInfo) {
         this.config = deviceInfo.configDevice
         this.mqttClient = deviceInfo.mqttClient
         this.topic = deviceInfo.topic
+        this.qos = (typeof deviceInfo.qos != 'undefined') ? deviceInfo.qos : 1
+        this.retain = !!deviceInfo.retain
 
         // Build TuyAPI device options from device config info
         this.options = {
             id: this.config.id,
             key: this.config.key,
-            issueRefreshOnConnect: true
+            // Defaults stay as before: refresh on connect only for devices without fixed IP
+            issueRefreshOnConnect: (typeof this.config.issueRefreshOnConnect != 'undefined') ? !!this.config.issueRefreshOnConnect : !this.config.ip,
+            issueRefreshOnPing: !!this.config.issueRefreshOnPing
         }
         if (this.config.name) { this.options.name = this.config.name.toLowerCase().replace(/\s|\+|#|\//g, '_') }
         if (this.config.ip) {
             this.options.ip = this.config.ip
-            if (this.config.version) {
-                this.options.version = this.config.version
-            } else {
-                this.options.version = '3.3'
-            }
-            if (this.config.issueRefreshOnConnect) {
-                this.options.issueRefreshOnConnect = this.config.issueRefreshOnConnect
-            } else {
-                this.options.issueRefreshOnConnect = false
-            }
-            if (this.config.issueRefreshOnPing) {
-                this.options.issueRefreshOnPing = this.config.issueRefreshOnPing
-            } else {
-                this.options.issueRefreshOnPing = false
-            }
+            this.options.version = this.config.version ? this.config.version : '3.3'
         }
         if (typeof this.config.issueGenericDpsTopics == 'undefined') {
             this.config.issueGenericDpsTopics = true
-        }
-
-        // Set default device data for Home Assistant device registry
-        // Values may be overridden by individual devices
-        this.deviceData = {
-            ids: [this.config.id],
-            name: (this.config.name) ? this.config.name : this.config.id,
-            mf: 'Tuya'
         }
 
         // Initialize properties to hold cached device state data
@@ -58,7 +43,8 @@ class TuyaDevice {
 
         // Missed heartbeat monitor
         this.heartbeatsMissed = 0
-        this.reconnecting = false
+        this.connecting = false
+        this.stopped = false
 
         // Build the MQTT topic for this device (friendly name or device id)
         if (this.options.name) {
@@ -111,25 +97,31 @@ class TuyaDevice {
             if (this.device.isConnected()) {
                 debug('Connected to device ' + this.toString())
                 this.heartbeatsMissed = 0
-                this.publishMqtt(this.baseTopic + 'status', 'online')
-                this.init()
+                this.publishStatus('online')
+                this.runInit()
             }
         })
 
         // On disconnect perform device specific disconnect
         this.device.on('disconnected', async () => {
             this.connected = false
-            this.publishMqtt(this.baseTopic + 'status', 'offline')
+            // TuyAPI clears but does not reset the pong timeout, which disables its own
+            // dead connection detection after a reconnect until the first pong arrives
+            clearTimeout(this.device._pingPongTimeout)
+            this.device._pingPongTimeout = null
+            this.publishStatus('offline')
             debug('Disconnected from device ' + this.toString())
-            await utils.sleep(5)
-            this.reconnect()
+            if (!this.stopped) {
+                this.reconnect()
+            }
         })
 
         // On connect error call reconnect
-        this.device.on('error', async (err) => {
+        this.device.on('error', (err) => {
             debugError(err)
-            await utils.sleep(1)
-            this.reconnect()
+            if (!this.stopped && !this.device.isConnected()) {
+                this.reconnect()
+            }
         })
 
         // On heartbeat reset heartbeat timer
@@ -163,7 +155,7 @@ class TuyaDevice {
             // Update cached device state data
             for (let key in data.dps) {
                 // Only update if the received value is different from previous value
-                if (this.dps[key] !== data.dps[key]) {
+                if (!this.dps[key] || this.dps[key].val !== data.dps[key]) {
                     this.dps[key] = {
                         'val': data.dps[key],
                         'updated': true
@@ -207,6 +199,11 @@ class TuyaDevice {
         if (this.config.issueGenericDpsTopics) {
             this.publishDpsTopics()
         }
+
+        // Mark all values as published, also when generic DPS topics are disabled
+        for (let key in this.dps) {
+            this.dps[key].updated = false
+        }
     }
 
     // Publish all dps-values to topic
@@ -233,7 +230,8 @@ class TuyaDevice {
                 // Only publish values if different from previous value
                 if (this.dps[key].updated) {
                     const dpsKeyTopic = dpsTopic + '/' + key + '/state'
-                    const data = this.dps.hasOwnProperty(key) && this.dps[key].hasOwnProperty('val') ? this.dps[key].val.toString() : 'None'
+                    const val = this.dps[key].val
+                    const data = (val === undefined || val === null) ? 'None' : val.toString()
                     debugState('MQTT DPS' + key + ': ' + dpsKeyTopic + ' -> ', data)
                     this.publishMqtt(dpsKeyTopic, data, false)
                     this.dps[key].updated = false
@@ -254,12 +252,6 @@ class TuyaDevice {
             case 'int':
             case 'float':
                 state = this.parseNumberState(value, deviceTopic)
-                break;
-            case 'rgbToHsb':
-                command = this.rgbToHsb(command)
-                debug('converted to hsb', command)
-                this.updateCommandColor(command, deviceTopic.components)
-                tuyaCommand.set = this.parseTuyaHsbColor()
                 break;
             case 'hsb':
             case 'hsbhex':
@@ -298,7 +290,6 @@ class TuyaDevice {
 
         return value.toString()
     }
-
 
     // Process MQTTT all states command
     processCommand(message) {
@@ -397,7 +388,8 @@ class TuyaDevice {
         switch (deviceTopic.type) {
             case 'bool':
                 if (command === 'toggle') {
-                    tuyaCommand.set = !this.dps[tuyaCommand.dps].val
+                    // Toggle requires a known current state
+                    tuyaCommand.set = this.dps[tuyaCommand.dps] ? !this.dps[tuyaCommand.dps].val : '!!!INVALID!!!'
                 } else {
                     command = this.parseBoolCommand(command)
                     if (typeof command.set === 'boolean') {
@@ -418,6 +410,12 @@ class TuyaDevice {
             case 'hsbhex':
                 this.updateCommandColor(command, deviceTopic.components)
                 tuyaCommand.set = this.parseTuyaHsbHexColor()
+                break;
+            case 'rgbToHsb':
+                command = this.rgbToHsb(command)
+                debug('converted to hsb', command)
+                this.updateCommandColor(command, deviceTopic.components)
+                tuyaCommand.set = this.parseTuyaHsbColor()
                 break;
             default:
                 // If type is not one of the above just use the raw string as is
@@ -454,7 +452,6 @@ class TuyaDevice {
                     : v === g
                         ? 2 + (b - r) / n
                         : 4 + (r - g) / n
-
 
         const hue = Math.round(60 * (h < 0 ? h + 6 : h))
         const saturation = Math.round(v && (n / v) * 100)
@@ -549,6 +546,10 @@ class TuyaDevice {
     // cmdColor property always contains the desired HSB color state based on received 
     // command topic messages vs actual device color state, which may be pending
     updateCommandColor(value, components) {
+        // Without a received color state yet, start from the cached (default) color
+        if (!this.cmdColor) {
+            this.cmdColor = { 'h': this.color.h, 's': this.color.s, 'b': this.color.b }
+        }
         // Update any HSB component with a changed value
         components = components.split(',')
         const values = value.split(',')
@@ -641,65 +642,111 @@ class TuyaDevice {
 
     // Simple function to help debug output 
     toString() {
-        return this.config.name + ' (' + (this.options.ip ? this.options.ip + ', ' : '') + this.options.id + ', ' + this.options.key + ')'
+        // Never log the local key
+        return this.config.name + ' (' + (this.options.ip ? this.options.ip + ', ' : '') + this.options.id + ')'
     }
 
     set(command) {
         debug('Set device ' + this.options.id + ' -> ' + JSON.stringify(command))
-        return new Promise((resolve, reject) => {
-            this.device.set(command).then((result) => {
-                resolve(result)
-            })
+        return this.device.set(command).catch((error) => {
+            debugError('Set device ' + this.options.id + ' failed: ' + (error && error.message ? error.message : error))
         })
     }
 
-    // Search for and connect to device
-    connectDevice() {
-        // Find device on network
-        debug('Search for device id ' + this.options.id)
-        this.device.find().then(() => {
-            debug('Found device id ' + this.options.id)
-            // Attempt connection to device
-            this.device.connect().catch((error) => {
-                debugError(error.message)
-                this.reconnect()
-            })
-        }).catch(async (error) => {
-            debugError(error.message)
-            debugError('Will attempt to find device again in 60 seconds')
-            await utils.sleep(60)
-            this.connectDevice()
-        })
-    }
-
-    // Retry connection every 10 seconds if unable to connect
-    async reconnect() {
-        if (!this.reconnecting) {
-            this.reconnecting = true
-            debugError('Error connecting to device id ' + this.options.id + '...retry in 10 seconds.')
-            await utils.sleep(10)
-            this.connectDevice()
-            this.reconnecting = false
+    // Search for and connect to device, retry until connected (only one attempt loop at a time)
+    async connectDevice(delay = 0) {
+        if (this.connecting || this.stopped) return
+        this.connecting = true
+        try {
+            if (delay) {
+                debugError('Connection to device id ' + this.options.id + ' lost...retry in ' + delay + ' seconds.')
+                await utils.sleep(delay)
+            }
+            while (!this.stopped && !this.device.isConnected()) {
+                debug('Search for device id ' + this.options.id)
+                try {
+                    await this.device.find()
+                } catch (error) {
+                    debugError(error.message)
+                    debugError('Will attempt to find device again in 60 seconds')
+                    await utils.sleep(60)
+                    continue
+                }
+                debug('Found device id ' + this.options.id)
+                try {
+                    await this.connectWithTimeout()
+                } catch (error) {
+                    debugError(error.message)
+                    this.resetConnection()
+                    debugError('Error connecting to device id ' + this.options.id + '...retry in 10 seconds.')
+                    await utils.sleep(10)
+                }
+            }
+        } finally {
+            this.connecting = false
         }
     }
 
-    // Republish device discovery/state data (used for Home Assistant state topic)
-    async republish() {
-        const status = (this.device.isConnected()) ? 'online' : 'offline'
-        this.publishMqtt(this.baseTopic + 'status', status)
-        await utils.sleep(1)
-        this.init()
+    // Reconnect after a short delay to give the device time to release the old session
+    reconnect() {
+        return this.connectDevice(10)
+    }
+
+    // TuyAPI's connect promise can stay pending forever, e.g. if the device closes the socket
+    // during the 3.4/3.5 session key negotiation (the socket timeout is already cleared then)
+    connectWithTimeout() {
+        let timer
+        const timeout = new Promise((resolve, reject) => {
+            timer = setTimeout(() => reject(new Error('Connection to device id ' + this.options.id + ' timed out')), CONNECT_TIMEOUT * 1000)
+        })
+        return Promise.race([this.device.connect(), timeout]).finally(() => clearTimeout(timer))
+    }
+
+    // Drop a stale socket and pending connect promise, otherwise TuyAPI keeps returning the dead promise
+    resetConnection() {
+        if (this.device.isConnected()) return
+        if (this.device.client) {
+            this.device.client.destroy()
+        }
+        delete this.device.connectPromise
+    }
+
+    // Stop reconnecting and disconnect from the device (used on shutdown)
+    stop() {
+        this.stopped = true
+        clearInterval(this.heartbeatInterval)
+        if (this.device.isConnected()) {
+            // Emits 'disconnected', which publishes the offline status
+            this.device.disconnect()
+        } else {
+            this.publishStatus('offline')
+        }
+    }
+
+    // Run device specific init, a failing device query must not crash the whole bridge
+    runInit() {
+        Promise.resolve()
+            .then(() => this.init())
+            .catch((error) => debugError('Init of device id ' + this.options.id + ' failed: ' + (error && error.message ? error.message : error)))
     }
 
     // Simple function to monitor heartbeats to determine if 
     monitorHeartbeat() {
-        setInterval(async () => {
+        this.heartbeatInterval = setInterval(() => {
+            if (!this.device.isConnected()) {
+                // Watchdog: never stay offline without an active reconnect loop
+                if (!this.connecting) {
+                    this.reconnect()
+                }
+                return
+            }
             if (this.connected) {
                 if (this.heartbeatsMissed > 3) {
                     debugError('Device id ' + this.options.id + ' not responding to heartbeats...disconnecting')
+                    this.heartbeatsMissed = 0
+                    // Emits 'disconnected', which triggers the reconnect
                     this.device.disconnect()
-                    await utils.sleep(1)
-                    this.connectDevice()
+                    return
                 } else if (this.heartbeatsMissed > 0) {
                     const errMessage = this.heartbeatsMissed > 1 ? " heartbeats" : " heartbeat"
                     debugError('Device id ' + this.options.id + ' has missed ' + this.heartbeatsMissed + errMessage)
@@ -709,10 +756,15 @@ class TuyaDevice {
         }, 10000)
     }
 
-    // Publish MQTT
-    publishMqtt(topic, message, isDebug) {
+    // Publish device online/offline status, always retained so late subscribers get the current status
+    publishStatus(status) {
+        this.publishMqtt(this.baseTopic + 'status', status, false, true)
+    }
+
+    // Publish MQTT (qos and retain from config.json unless retain is given explicitly)
+    publishMqtt(topic, message, isDebug, retain = this.retain) {
         if (isDebug) { debugState(topic, message) }
-        this.mqttClient.publish(topic, message, { qos: 1 });
+        this.mqttClient.publish(topic, message, { qos: this.qos, retain: retain });
     }
 }
 

@@ -1,6 +1,4 @@
 const TuyaDevice = require('./tuya-device')
-const debug = require('debug')('tuya2mqtt:device')
-const utils = require('../lib/utils')
 
 class CeilingFan extends TuyaDevice {
     async init() {
@@ -12,8 +10,6 @@ class CeilingFan extends TuyaDevice {
         this.config.dpsDirection = this.config.dpsDirection ? this.config.dpsDirection : 63
         this.config.dpsCountdown = this.config.dpsCountdown ? this.config.dpsCountdown : 64
         this.config.dpsBeep = this.config.dpsBeep ? this.config.dpsBeep : 66
-
-        this.deviceData.mdl = 'Ceiling Fan'
 
         // Map generic DPS topics to device specific topic names
         this.deviceTopics = {

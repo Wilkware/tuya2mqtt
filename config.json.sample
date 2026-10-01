@@ -3,5 +3,7 @@
     "port": 1883,
     "topic": "tuya2mqtt/",
     "mqtt_user": "",
-    "mqtt_pass": ""
+    "mqtt_pass": "",
+    "qos": 1,
+    "retain": false
 }

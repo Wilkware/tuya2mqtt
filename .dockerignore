@@ -1,10 +1,14 @@
 node_modules
 npm-debug.log
 .git
+.github
 .gitignore
+.vscode
 Dockerfile
 .dockerignore
+docs
+*.md
+*.sample
+*.sh
 *.conf
 config.json
-
-

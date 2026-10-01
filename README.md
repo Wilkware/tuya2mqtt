@@ -1,7 +1,7 @@
 # tuya2mqtt
 
 [![NodeJs](https://img.shields.io/badge/Node.js-339933?logo=node.js&logoColor=white&style=flat-square)](https://nodejs.org)
-[![Version](https://img.shields.io/badge/Version-1.4.0-orange.svg?style=flat-square)](https://github.com/Wilkware/tuya2mqtt)
+[![Version](https://img.shields.io/badge/Version-1.5.0-orange.svg?style=flat-square)](https://github.com/Wilkware/tuya2mqtt)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg?style=flat-square)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=8816166)
 
@@ -85,6 +85,16 @@ Bearbeite die `config.json` und trage die Einstellungen deines MQTT-Brokers ein.
 nano config.json
 ```
 
+| Option      | Beschreibung                                                                 | Standard     |
+| ----------- | ---------------------------------------------------------------------------- | ------------ |
+| `host`      | Adresse des MQTT-Brokers                                                     | –            |
+| `port`      | Port des MQTT-Brokers                                                        | –            |
+| `topic`     | Basis-Topic, darf auch mehrstufig sein (z. B. `home/tuya/`)                  | `tuya2mqtt/` |
+| `mqtt_user` | Benutzername für den MQTT-Broker                                             | –            |
+| `mqtt_pass` | Passwort für den MQTT-Broker                                                 | –            |
+| `qos`       | QoS-Level für alle publizierten Nachrichten                                  | `1`          |
+| `retain`    | Zustands-Topics mit Retain-Flag publizieren (Status-Topics sind immer retained) | `false`   |
+
 ### Einrichtung von devices.conf:
 
 Wenn du die Methode „tuya-cli wizard“ verwendest, um die Geräteschlüssel zu erhalten, kannst du die Ausgabe dieses Tools als Ausgangspunkt für deine `devices.conf`-Datei nutzen.
@@ -161,8 +171,14 @@ tuya/86435357d8b123456789/
 Alle weiteren Status- und Befehls-Topics werden hierarchisch unterhalb dieser Ebene aufgebaut.
 Der Status des Geräts (ob online oder offline) kann über das folgende Topic abgefragt werden:
 ```bash
-tuya/kitchen_table/state --> online/offline
+tuya/kitchen_table/status --> online/offline
 ```
+Zusätzlich meldet tuya2mqtt seinen eigenen Status. Bricht die Verbindung zum Broker unerwartet ab, setzt der Broker dieses Topic über den MQTT „Last Will“ automatisch auf `offline`:
+```bash
+tuya/bridge/status --> online/offline
+```
+Beide Status-Topics werden mit Retain-Flag publiziert, sodass auch später verbundene Clients den aktuellen Status erhalten.
+
 Das Skript überwacht dazu sowohl die Socket-Verbindung als auch die Heartbeats des Geräts, um den aktuellen Status korrekt zu melden. Du kannst das Gerät dazu bringen, sofort alle bekannten DPS-Werte zu senden, indem du die Nachricht `get-states` an das Command-Topic sendest:
 ```swift
 tuya/kitchen_table/command <-- get-states
@@ -250,9 +266,17 @@ Die Anwendung kann alternativ zu einer direkten Node.js-Installation auch als Do
 * Optional: Portainer zur Verwaltung des Containers
 * Eine vorhandene Konfiguration (`config.json` und `devices.conf`)
 
+### Fertiges Image verwenden
+
+Bei jedem Push auf `main` und bei jedem Versions-Tag (`v*`) wird ein Image für `linux/amd64`, `linux/arm64` und `linux/arm/v7` (z. B. Raspberry Pi) gebaut und veröffentlicht:
+
+```bash
+docker pull ghcr.io/wilkware/tuya2mqtt:latest
+```
+
 ### Docker Image bauen
 
-Im Projektverzeichnis mit der `Dockerfile` ausführen:
+Alternativ im Projektverzeichnis mit der `Dockerfile` ausführen:
 
 ```bash
 docker build -t tuya2mqtt:latest .
@@ -261,7 +285,7 @@ docker build -t tuya2mqtt:latest .
 Optional kann eine feste Version vergeben werden:
 
 ```bash
-docker build -t tuya2mqtt:1.4.0 .
+docker build -t tuya2mqtt:1.5.0 .
 ```
 
 ### Konfiguration
@@ -291,10 +315,28 @@ docker run -d \
   --restart unless-stopped \
   -v /opt/services/tuya2mqtt/config.json:/app/config.json:ro \
   -v /opt/services/tuya2mqtt/devices.conf:/app/devices.conf:ro \
-  tuya2mqtt:1.4.0
+  tuya2mqtt:1.5.0
 ```
 
 Die Konfigurationsdateien werden dabei nur lesbar (`:ro`) in den Container eingebunden.
+
+Der Container läuft nicht als root, sondern als Benutzer `node` (UID 1000). Die Konfigurationsdateien auf dem Host müssen daher für diesen Benutzer lesbar sein, z. B.:
+
+```bash
+sudo chown 1000:1000 /opt/services/tuya2mqtt/config.json /opt/services/tuya2mqtt/devices.conf
+sudo chmod 600 /opt/services/tuya2mqtt/config.json /opt/services/tuya2mqtt/devices.conf
+```
+
+Statt der einzelnen Dateien kann auch ein ganzes Verzeichnis eingebunden werden. Über die Umgebungsvariable `CONFIG_DIR` wird festgelegt, wo `config.json` und `devices.conf` gesucht werden (Standard: Programmverzeichnis):
+
+```bash
+docker run -d \
+  --name tuya2mqtt \
+  --restart unless-stopped \
+  -e CONFIG_DIR=/config \
+  -v /opt/services/tuya2mqtt:/config:ro \
+  ghcr.io/wilkware/tuya2mqtt:latest
+```
 
 ### Logs anzeigen
 
@@ -304,6 +346,7 @@ Die Container-Ausgabe kann mit folgendem Befehl angezeigt werden:
 docker logs -f tuya2mqtt
 ```
 
+Standardmäßig werden Info- und Fehlermeldungen ausgegeben (`DEBUG=tuya2mqtt:info,tuya2mqtt:error`).
 Für detaillierte Debug-Ausgaben kann die Anwendung mit der Umgebungsvariable `DEBUG` gestartet werden:
 
 ```bash
@@ -313,7 +356,7 @@ docker run -d \
   -e DEBUG="tuyapi*,tuya2mqtt*" \
   -v /opt/services/tuya2mqtt/config.json:/app/config.json:ro \
   -v /opt/services/tuya2mqtt/devices.conf:/app/devices.conf:ro \
-  tuya2mqtt:1.4.0
+  tuya2mqtt:1.5.0
 ```
 
 ### Portainer / Docker Compose
@@ -323,7 +366,7 @@ Beispiel für einen Portainer Stack:
 ```yaml
 services:
   tuya2mqtt:
-    image: tuya2mqtt:1.4.0
+    image: tuya2mqtt:1.5.0
     container_name: tuya2mqtt
     restart: unless-stopped
 
@@ -335,7 +378,7 @@ services:
 Nach Änderungen am Image:
 
 ```bash
-docker build -t tuya2mqtt:1.4.1 .
+docker build -t tuya2mqtt:1.5.1 .
 ```
 
 Anschließend den Container bzw. Stack neu deployen.
@@ -359,6 +402,10 @@ Im Docker-Betrieb muss die erreichbare Adresse des MQTT-Brokers verwendet werden
 ```
 
 oder der Containername eines MQTT-Brokers im gleichen Docker-Netzwerk.
+
+## Changelog
+
+Alle Änderungen der einzelnen Versionen sind im [CHANGELOG](CHANGELOG.md) dokumentiert.
 
 ## Contributors
 

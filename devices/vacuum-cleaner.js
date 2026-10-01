@@ -1,6 +1,4 @@
 const TuyaDevice = require('./tuya-device')
-const debug = require('debug')('tuya2mqtt:device')
-const utils = require('../lib/utils')
 
 class VacuumCleaner extends TuyaDevice {
     async init() {
@@ -19,11 +17,6 @@ class VacuumCleaner extends TuyaDevice {
         this.config.dpsVolumn = this.config.dpsVolumn ? this.config.dpsVolumn : 28
         this.config.dpsLang = this.config.dpsLang ? this.config.dpsLang : 29
         this.config.dpsSpeed = this.config.dpsSpeed ? this.config.dpsSpeed : 101
-
-        this.config.volumnScale = this.config.volumnScale ? this.config.volumnScale : 0
-        this.config.volumnStep = this.config.volumnStep ? this.config.volumnStep : 5
-
-        this.deviceData.mdl = 'Vacuum Cleaner'
 
         // Map generic DPS topics to device specific topic names
         this.deviceTopics = {

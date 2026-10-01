@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 const fs = require('fs')
+const path = require('path')
 const mqtt = require('mqtt')
 const json5 = require('json5')
-const utils = require('./lib/utils')
 const debugInfo = require('debug')('tuya2mqtt:info')
 const debugCommand = require('debug')('tuya2mqtt:command')
 const debugError = require('debug')('tuya2mqtt:error')
@@ -15,22 +15,44 @@ const VacuumCleaner = require('./devices/vacuum-cleaner')
 const Dehumidifier = require('./devices/dehumidifier')
 
 var CONFIG = undefined
+// Directory with config.json and devices.conf (defaults to the application directory)
+const CONFIG_DIR = process.env.CONFIG_DIR || __dirname
 var tuyaDevices = new Array()
 
-// Setup Exit Handlers
-process.on('exit', processExit.bind(0))
-process.on('SIGINT', processExit.bind(0))
-process.on('SIGTERM', processExit.bind(0))
-process.on('uncaughtException', processExit.bind(1))
+var mqttClient = undefined
+var shuttingDown = false
 
-// Disconnect from and publish offline status for all devices on exit
-async function processExit(exitCode) {
+// Setup Exit Handlers
+process.on('SIGINT', () => shutdown(0))
+process.on('SIGTERM', () => shutdown(0))
+process.on('uncaughtException', (error) => {
+    console.error(error)
+    debugError(error)
+    shutdown(1)
+})
+
+// Topic for the online/offline status of the bridge itself (also used as MQTT last will)
+function bridgeStatusTopic() {
+    return CONFIG.topic + 'bridge/status'
+}
+
+// Disconnect from all devices, publish offline status and exit
+function shutdown(exitCode) {
+    if (shuttingDown) return
+    shuttingDown = true
+    debugInfo('Shutting down, exit code: ' + exitCode)
     for (let tuyaDevice of tuyaDevices) {
-        tuyaDevice.device.disconnect()
+        tuyaDevice.stop()
     }
-    if (exitCode || exitCode === 0) debugInfo('Exit code: ' + exitCode)
-    await utils.sleep(1)
-    process.exit()
+    // Exit even if the broker does not acknowledge the last messages
+    setTimeout(() => process.exit(exitCode), 2000).unref()
+    if (mqttClient && mqttClient.connected) {
+        mqttClient.publish(bridgeStatusTopic(), 'offline', { qos: 1, retain: true }, () => {
+            mqttClient.end(false, () => process.exit(exitCode))
+        })
+    } else {
+        process.exit(exitCode)
+    }
 }
 
 // Get new deivce based on configured type
@@ -38,27 +60,23 @@ function getDevice(configDevice, mqttClient) {
     const deviceInfo = {
         configDevice: configDevice,
         mqttClient: mqttClient,
-        topic: CONFIG.topic
+        topic: CONFIG.topic,
+        qos: CONFIG.qos,
+        retain: CONFIG.retain
     }
     switch (configDevice.type) {
         case 'SimpleSwitch':
             return new SimpleSwitch(deviceInfo)
-            break;
         case 'SimpleDimmer':
             return new SimpleDimmer(deviceInfo)
-            break;
         case 'RGBTWLight':
             return new RGBTWLight(deviceInfo)
-            break;
         case 'VacuumCleaner':
             return new VacuumCleaner(deviceInfo)
-            break;
         case 'CeilingFan':
             return new CeilingFan(deviceInfo)
-            break;
         case 'Dehumidifier':
             return new Dehumidifier(deviceInfo)
-            break;
     }
     return new GenericDevice(deviceInfo)
 }
@@ -74,12 +92,11 @@ function initDevices(configDevices, mqttClient) {
 // Main code function
 const main = async () => {
     let configDevices
-    let mqttClient
 
     try {
-        CONFIG = require('./config')
+        CONFIG = JSON.parse(fs.readFileSync(path.join(CONFIG_DIR, 'config.json'), 'utf8'))
     } catch (e) {
-        console.error('Configuration file not found!')
+        console.error('Configuration file ' + path.join(CONFIG_DIR, 'config.json') + ' not found or invalid!')
         debugError(e)
         process.exit(1)
     }
@@ -90,12 +107,18 @@ const main = async () => {
     if (typeof CONFIG.retain == 'undefined') {
         CONFIG.retain = false
     }
+    if (typeof CONFIG.topic != 'string' || !CONFIG.topic) {
+        CONFIG.topic = 'tuya2mqtt/'
+    }
+    if (!CONFIG.topic.endsWith('/')) {
+        CONFIG.topic += '/'
+    }
 
     try {
-        configDevices = fs.readFileSync('./devices.conf', 'utf8')
+        configDevices = fs.readFileSync(path.join(CONFIG_DIR, 'devices.conf'), 'utf8')
         configDevices = json5.parse(configDevices)
     } catch (e) {
-        console.error('Devices file not found!')
+        console.error('Devices file ' + path.join(CONFIG_DIR, 'devices.conf') + ' not found or invalid!')
         debugError(e)
         process.exit(1)
     }
@@ -110,13 +133,27 @@ const main = async () => {
         port: CONFIG.port,
         username: CONFIG.mqtt_user,
         password: CONFIG.mqtt_pass,
+        will: {
+            topic: bridgeStatusTopic(),
+            payload: 'offline',
+            qos: 1,
+            retain: true
+        }
     })
 
     mqttClient.on('connect', function (err) {
         debugInfo('Connection established to MQTT server')
-        let topic = CONFIG.topic + '#'
-        mqttClient.subscribe(topic)
-        initDevices(configDevices, mqttClient)
+        mqttClient.publish(bridgeStatusTopic(), 'online', { qos: 1, retain: true })
+        // Only subscribe to command topics, not to the state topics published by tuya2mqtt itself
+        mqttClient.subscribe([
+            CONFIG.topic + '+/command',
+            CONFIG.topic + '+/+/command',
+            CONFIG.topic + '+/dps/+/command'
+        ])
+        // Devices keep running across MQTT reconnects, so only create them once
+        if (!tuyaDevices.length) {
+            initDevices(configDevices, mqttClient)
+        }
     })
 
     mqttClient.on('reconnect', function (error) {
@@ -134,43 +171,47 @@ const main = async () => {
     mqttClient.on('message', function (topic, message) {
         try {
             message = message.toString()
-            const splitTopic = topic.split('/')
-            const topicLength = splitTopic.length
-            const commandTopic = splitTopic[topicLength - 1]
-            const deviceLevel = splitTopic[1]
-
-            // Check, if it a valid command topic try to process it
-            if (commandTopic === 'command') {
-                debugInfo('Received MQTT message -> ', JSON.stringify({
-                    topic: topic,
-                    message: message
-                }))
-
-                // Use device topic level to find matching device
-                const device = tuyaDevices.find(d => d.options.name === deviceLevel || d.options.id === deviceLevel)
-                switch (topicLength) {
-                    case 3:
-                        debugCommand('3:processCommand -> ' + message)
-                        device.processCommand(message)
-                        break;
-                    case 4:
-                        const deviceTopic = splitTopic[topicLength - 2]
-                        if(deviceTopic.toLowerCase() !== 'dps') {
-                            debugCommand('4:processDeviceCommand -> ' + deviceTopic)
-                            device.processDeviceCommand(message, deviceTopic)
-                        } else {
-                            debugCommand('4:processDpsCommand ->' + message)
-                            device.processDpsCommand(message)
-                        }
-                        break;
-                    case 5:
-                        const dpsKey = splitTopic[topicLength - 2]
-                        debugCommand('5:processDpsKeyCommand - DPS Key = ' + dpsKey)
-                        device.processDpsKeyCommand(message, dpsKey)
-                        break;
-                }
-            } else {
+            if (!topic.startsWith(CONFIG.topic)) return
+            // Topic levels below the configured base topic, e.g. [device, dps, 1, command]
+            const levels = topic.slice(CONFIG.topic.length).split('/')
+            if (levels[levels.length - 1] !== 'command') {
                 debugError('Only command messages allowed!!!')
+                return
+            }
+
+            debugInfo('Received MQTT message -> ', JSON.stringify({
+                topic: topic,
+                message: message
+            }))
+
+            // Use device topic level to find matching device
+            const deviceLevel = levels[0]
+            const device = tuyaDevices.find(d => d.options.name === deviceLevel || d.options.id === deviceLevel)
+            if (!device) {
+                debugError('No device found for topic ' + topic)
+                return
+            }
+
+            switch (levels.length) {
+                case 2:
+                    debugCommand('processCommand -> ' + message)
+                    device.processCommand(message)
+                    break;
+                case 3:
+                    if (levels[1].toLowerCase() !== 'dps') {
+                        debugCommand('processDeviceCommand -> ' + levels[1])
+                        device.processDeviceCommand(message, levels[1])
+                    } else {
+                        debugCommand('processDpsCommand -> ' + message)
+                        device.processDpsCommand(message)
+                    }
+                    break;
+                case 4:
+                    if (levels[1].toLowerCase() === 'dps') {
+                        debugCommand('processDpsKeyCommand - DPS Key = ' + levels[2])
+                        device.processDpsKeyCommand(message, levels[2])
+                    }
+                    break;
             }
         } catch (e) {
             debugError(e)

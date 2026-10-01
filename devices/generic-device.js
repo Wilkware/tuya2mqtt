@@ -4,7 +4,6 @@ const utils = require('../lib/utils')
 
 class GenericDevice extends TuyaDevice {
     async init() {
-        this.deviceData.mdl = 'Generic Device'
 
         // Check if custom template in device config
         if (this.config.hasOwnProperty('template')) {

@@ -1,16 +1,16 @@
 const TuyaDevice = require('./tuya-device')
 const debug = require('debug')('tuya2mqtt:device')
-const utils = require('../lib/utils')
 
 class RGBTWLight extends TuyaDevice {
     async init() {
         // If no manual config try to detect device settings
-        if (!this.config.dpsPower) { 
+        this.guess = {}
+        if (!this.config.dpsPower) {
             await this.guessLightInfo()
         }
 
         // If detection failed and no manual config return without initializing
-        if (!this.config.dpsPower && (!!this.guess || !this.guess.dpsPower)) {
+        if (!this.config.dpsPower && !this.guess.dpsPower) {
             debug('Automatic discovery of Tuya bulb settings failed and no manual configuration') 
             return
         }     
@@ -27,7 +27,6 @@ class RGBTWLight extends TuyaDevice {
         this.config.dpsColor = this.config.dpsColor ? this.config.dpsColor : this.guess.dpsColor
         this.config.colorType = this.config.colorType ? this.config.colorType : this.guess.colorType
 
-        this.deviceData.mdl = 'RGBTW Light'
         this.isRgbtwLight = true
 
         // Set white value transform math
@@ -98,7 +97,8 @@ class RGBTWLight extends TuyaDevice {
                 topicMin: this.config.minColorTemp,
                 topicMax: this.config.maxColorTemp,
                 stateMath: '/'+scaleFactor+'*-'+rangeFactor+'+'+this.config.maxColorTemp,
-                commandMath: '/'+rangeFactor+'*-'+scaleFactor+'+'+tuyaMaxColorTemp
+                commandMath: '/'+rangeFactor+'*-'+scaleFactor+'+'+tuyaMaxColorTemp,
+                readOnly: false
             }
         }
 
