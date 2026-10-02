@@ -24,6 +24,7 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 ### Geändert
 
 - Verbindungsaufbau zu Geräten überarbeitet: nur noch eine Retry-Schleife pro Gerät, Timeout für den Verbindungsaufbau (inkl. Session-Key-Aushandlung bei Protokoll 3.4/3.5), Aufräumen hängender Verbindungen und ein Watchdog, der ein Gerät nie ohne aktiven Reconnect offline lässt.
+- Ist ein Gerät nicht erreichbar, verdoppelt sich die Wartezeit zwischen den Verbindungsversuchen nach jedem Fehlversuch (10 s bis maximal 5 min). Nach einer erfolgreichen Verbindung beginnt sie wieder bei 10 s. Fehlgeschlagene Versuche werden nur beim ersten und danach bei jedem 10. Versuch geloggt, so bleibt das Log auch bei längerer Abwesenheit eines Geräts klein.
 - Werte werden nur noch publiziert, wenn sie sich tatsächlich geändert haben – auch bei `issueGenericDpsTopics: false`.
 - `issueRefreshOnConnect` und `issueRefreshOnPing` werden jetzt auch bei Geräten ohne feste IP aus der Konfiguration übernommen (die bisherigen Standardwerte bleiben gleich).
 - Dockerfile: Start direkt mit `node` (Signale kommen beim Prozess an), Info- und Fehlerausgaben standardmäßig aktiv (`DEBUG=tuya2mqtt:info,tuya2mqtt:error`), unnötiges `EXPOSE 3000` entfernt, schlankeres Image durch erweiterte `.dockerignore`.
@@ -34,6 +35,7 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 
 - Nach einem Reconnect zum MQTT-Broker wurden alle Geräte erneut angelegt. Das führte zu doppelten Verbindungen zum selben Gerät, die sich gegenseitig getrennt haben.
 - Ein fehlgeschlagener Befehl (z. B. Timeout bei einem nicht erreichbaren Gerät) oder eine fehlgeschlagene Geräteabfrage während der Initialisierung hat die gesamte Anwendung beendet.
+- Beantwortete ein Gerät nicht jede einzelne DPS-Abfrage (beim Verbinden oder per `get-states`), blieb die Abfrage ohne Timeout hängen. Danach wurden für dieses Gerät keine Werte mehr publiziert und die Heartbeat-Überwachung war deaktiviert. Alle DPS werden jetzt mit einer einzigen Abfrage und 5 s Timeout gelesen, anschließend werden alle bekannten Werte publiziert. Das gilt auch für die Schema-Abfrage beim generischen Gerät und die automatische Erkennung beim RGBTW-Licht. Antwortet ein Gerät mit einer Sequenznummer, die TuyAPI der Abfrage nicht zuordnen kann, wird die Antwort trotzdem sofort übernommen.
 - RGBTW-Licht: Die automatische Erkennung der DPS-Belegung hat nie gegriffen, eine teilweise manuelle Konfiguration führte zum Absturz.
 - RGBTW-Licht: Die Farbtemperatur (`color_temp_state`) ließ sich nicht setzen.
 - Topic-Typ `rgbToHsb` hat beim Publizieren einen Fehler ausgelöst; die Umrechnung wird jetzt beim Befehl ausgeführt.

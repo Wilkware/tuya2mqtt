@@ -11,12 +11,16 @@ class GenericDevice extends TuyaDevice {
             this.deviceTopics = this.config.template
         } else {
             // Try to get schema to at least know what DPS keys to get initial update
-            const result = await this.device.get({"schema": true})
-            if (!utils.isJsonString(result)) {
-                if (result === 'Schema for device not available') {
-                    debug('Device id '+this.config.id+' failed schema discovery and no custom template defined')
-                    debug('Cannot get initial DPS state data for device '+this.options.name+' but data updates will be publish')
+            try {
+                const result = await this.getWithTimeout({"schema": true})
+                if (!utils.isJsonString(result)) {
+                    if (result === 'Schema for device not available') {
+                        debug('Device id '+this.config.id+' failed schema discovery and no custom template defined')
+                        debug('Cannot get initial DPS state data for device '+this.options.name+' but data updates will be publish')
+                    }
                 }
+            } catch (error) {
+                debug('Schema discovery for device id '+this.config.id+' failed: '+(error && error.message ? error.message : error))
             }
         }
 

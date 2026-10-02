@@ -111,9 +111,21 @@ class RGBTWLight extends TuyaDevice {
         debug('Attempting to detect light capabilites and DPS values...')
         debug('Querying DPS 2 for white/color mode setting...')
 
+        // Query all DPS at once, some devices do not answer consecutive single DPS queries
+        let dps = {}
+        try {
+            const data = await this.getWithTimeout({"schema": true})
+            if (data && typeof data === 'object' && data.dps) {
+                dps = data.dps
+            }
+        } catch (error) {
+            debug('Querying device failed: '+(error && error.message ? error.message : error))
+            return
+        }
+
         // Check if DPS 2 contains typical values for RGBTW light
-        const mode2 = await this.device.get({"dps": 2})
-        const mode21 = await this.device.get({"dps": 21})
+        const mode2 = dps[2]
+        const mode21 = dps[21]
         if (mode2 && (mode2 === 'white' || mode2 === 'colour' || mode2.toString().includes('scene'))) {
             debug('Detected likely Tuya color bulb at DPS 1-5, checking more details...')
             this.guess = {'dpsPower': 1, 'dpsMode': 2, 'dpsWhiteValue': 3, 'whiteValueScale': 255, 'dpsColorTemp': 4, 'colorTempScale': 255, 'dpsColor': 5}
@@ -124,7 +136,7 @@ class RGBTWLight extends TuyaDevice {
 
         if (this.guess.dpsPower) {
             debug('Attempting to detect if bulb supports color temperature...')
-            const colorTemp = await this.device.get({"dps": this.guess.dpsColorTemp})
+            const colorTemp = dps[this.guess.dpsColorTemp]
             if (colorTemp !== '' && colorTemp >= 0 && colorTemp <= this.guess.colorTempScale) {
                 debug('Detected likely color temperature support')
             } else {
@@ -132,7 +144,7 @@ class RGBTWLight extends TuyaDevice {
                 this.guess.dpsColorTemp = 0
             }
             debug('Attempting to detect Tuya color format used by device...')
-            const color = await this.device.get({"dps": this.guess.dpsColor})
+            const color = dps[this.guess.dpsColor]
             if (this.guess.dpsPower === 1) {
                 this.guess.colorType = (color && color.length === 12) ? 'hsb' : 'hsbhex'
             } else {

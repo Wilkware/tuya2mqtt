@@ -9,6 +9,16 @@ const debugError = require('debug')('tuya2mqtt:error')
 // Seconds to wait for a connection (incl. 3.4/3.5 session key negotiation)
 const CONNECT_TIMEOUT = 20
 
+// Seconds to wait for the response of a get-states query
+const GET_STATES_TIMEOUT = 5
+
+// Seconds between connection attempts, doubled after each failure up to the maximum
+const RETRY_DELAY_MIN = 10
+const RETRY_DELAY_MAX = 300
+
+// Only the first and every n-th failed connection attempt is logged
+const RETRY_LOG_INTERVAL = 10
+
 class TuyaDevice {
     constructor(deviceInfo) {
         this.config = deviceInfo.configDevice
@@ -45,6 +55,10 @@ class TuyaDevice {
         this.heartbeatsMissed = 0
         this.connecting = false
         this.stopped = false
+
+        // Failed connection attempts since the last successful connect
+        this.failedAttempts = 0
+        this.logAttempt = true
 
         // Build the MQTT topic for this device (friendly name or device id)
         if (this.options.name) {
@@ -118,7 +132,10 @@ class TuyaDevice {
 
         // On connect error call reconnect
         this.device.on('error', (err) => {
-            debugError(err)
+            // Errors of a connection attempt are throttled like the retry messages
+            if (!this.connecting || this.logAttempt) {
+                debugError(err)
+            }
             if (!this.stopped && !this.device.isConnected()) {
                 this.reconnect()
             }
@@ -130,22 +147,62 @@ class TuyaDevice {
         })
     }
 
+    // Query device data; TuyAPI has no response timeout, so a device that ignores
+    // a query would otherwise block the caller (and with it publishing) forever
+    getWithTimeout(options) {
+        let onData
+        let timer
+        return Promise.race([
+            this.device.get(options),
+            new Promise((resolve) => {
+                // Some devices answer with a sequence number TuyAPI cannot assign to the query,
+                // then get() never resolves although the response arrives as data event
+                onData = (data) => {
+                    if (options.schema && data && typeof data === 'object' && data.dps) {
+                        resolve(data)
+                    }
+                }
+                this.device.on('data', onData)
+            }),
+            new Promise((resolve, reject) => {
+                timer = setTimeout(() => reject(new Error('timeout after ' + GET_STATES_TIMEOUT + 's')), GET_STATES_TIMEOUT * 1000)
+            })
+        ]).finally(() => {
+            clearTimeout(timer)
+            this.device.removeListener('data', onData)
+        })
+    }
+
     // Get and update cached values of all configured/known dps value for device
     async getStates() {
+        if (this.gettingStates) {
+            debugCommand('get-states already running for device id ' + this.options.id)
+            return
+        }
+        this.gettingStates = true
         // Suppress topic updates while syncing device state with cached state
         this.connected = false
+        try {
+            // Query all DPS at once, some devices do not answer consecutive single DPS queries
+            const data = await this.getWithTimeout({ "schema": true })
+            if (data && typeof data === 'object' && data.dps) {
+                for (let key in data.dps) {
+                    this.dps[key] = { 'val': data.dps[key], 'updated': true }
+                }
+            } else {
+                debugError('Unexpected get-states response from device id ' + this.options.id + ': ' + JSON.stringify(data))
+            }
+        } catch (error) {
+            debugError('Could not get states for device id ' + this.options.id + ': ' + (error && error.message ? error.message : error))
+        } finally {
+            this.gettingStates = false
+            this.connected = this.device.isConnected()
+        }
+        // Force topic update of all known values (also those already received via data events)
         for (let topic in this.deviceTopics) {
             const key = this.deviceTopics[topic].key
-            if (!this.dps[key]) { this.dps[key] = {} }
-            try {
-                this.dps[key].val = await this.device.get({ "dps": key })
-                this.dps[key].updated = true
-            } catch {
-                debugError('Could not get value for device DPS key ' + key)
-            }
+            if (this.dps[key]) { this.dps[key].updated = true }
         }
-        this.connected = true
-        // Force topic update now that all states are fully syncronized
         this.publishTopics()
     }
 
@@ -663,33 +720,51 @@ class TuyaDevice {
                 await utils.sleep(delay)
             }
             while (!this.stopped && !this.device.isConnected()) {
-                debug('Search for device id ' + this.options.id)
+                this.logAttempt = this.failedAttempts % RETRY_LOG_INTERVAL === 0
+                if (this.logAttempt) {
+                    debug('Search for device id ' + this.options.id)
+                }
                 try {
                     await this.device.find()
                 } catch (error) {
-                    debugError(error.message)
-                    debugError('Will attempt to find device again in 60 seconds')
-                    await utils.sleep(60)
+                    await this.retryLater(error, 'Error finding device id ' + this.options.id, 60)
                     continue
                 }
-                debug('Found device id ' + this.options.id)
+                if (this.logAttempt) {
+                    debug('Found device id ' + this.options.id)
+                }
                 try {
                     await this.connectWithTimeout()
                 } catch (error) {
-                    debugError(error.message)
                     this.resetConnection()
-                    debugError('Error connecting to device id ' + this.options.id + '...retry in 10 seconds.')
-                    await utils.sleep(10)
+                    await this.retryLater(error, 'Error connecting to device id ' + this.options.id, RETRY_DELAY_MIN)
                 }
             }
+            if (this.failedAttempts > 0 && this.device.isConnected()) {
+                debug('Device id ' + this.options.id + ' connected after ' + this.failedAttempts + ' failed attempts')
+            }
+            this.failedAttempts = 0
         } finally {
             this.connecting = false
+            this.logAttempt = true
         }
+    }
+
+    // Count a failed connection attempt and wait with exponential backoff, log only every n-th failure
+    async retryLater(error, message, baseDelay) {
+        this.failedAttempts++
+        const delay = Math.min(baseDelay * 2 ** Math.min(this.failedAttempts - 1, 10), RETRY_DELAY_MAX)
+        if (this.logAttempt) {
+            debugError(error.message)
+            debugError(message + ' (failed attempts: ' + this.failedAttempts + ')...retry in ' + delay + ' seconds.' +
+                (this.failedAttempts === 1 ? ' Further failures are only logged every ' + RETRY_LOG_INTERVAL + ' attempts.' : ''))
+        }
+        await utils.sleep(delay)
     }
 
     // Reconnect after a short delay to give the device time to release the old session
     reconnect() {
-        return this.connectDevice(10)
+        return this.connectDevice(RETRY_DELAY_MIN)
     }
 
     // TuyAPI's connect promise can stay pending forever, e.g. if the device closes the socket

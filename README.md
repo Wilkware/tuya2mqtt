@@ -366,22 +366,42 @@ Beispiel für einen Portainer Stack:
 ```yaml
 services:
   tuya2mqtt:
-    image: tuya2mqtt:1.5.0
+    image: ghcr.io/wilkware/tuya2mqtt:latest
     container_name: tuya2mqtt
     restart: unless-stopped
 
+    environment:
+      - CONFIG_DIR=/config
+
     volumes:
-      - /opt/services/tuya2mqtt/config.json:/app/config.json:ro
-      - /opt/services/tuya2mqtt/devices.conf:/app/devices.conf:ro
+      - /opt/services/tuya2mqtt:/config:ro
 ```
 
-Nach Änderungen am Image:
+Statt `latest` kann auch eine feste Version (z. B. `:1.5.0`) oder nur die Minor-Version (z. B. `:1.5`) verwendet werden.
+
+### Update
+
+Neue Images werden automatisch per GitHub Action gebaut. Zum Aktualisieren das neue Image holen und den Container neu erstellen:
+
+**Docker Compose:**
 
 ```bash
-docker build -t tuya2mqtt:1.5.1 .
+docker compose pull
+docker compose up -d
 ```
 
-Anschließend den Container bzw. Stack neu deployen.
+**Portainer:** Stack öffnen → *Update the stack* → Option *Re-pull image and redeploy* aktivieren.
+
+**docker run:**
+
+```bash
+docker pull ghcr.io/wilkware/tuya2mqtt:latest
+docker stop tuya2mqtt && docker rm tuya2mqtt
+```
+
+Danach den Container wie unter [Container starten](#container-starten) beschrieben neu starten. Die Konfiguration liegt außerhalb des Containers und bleibt erhalten.
+
+Wer das Image selbst baut (`docker build`), erstellt danach den Container bzw. Stack auf die gleiche Weise neu.
 
 ### Hinweis zu MQTT
 
